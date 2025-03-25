@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psi-runtime-sdk"
+version = "0.1.0"
+description = "量子啟發式推理與語義場分析SDK"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "AI開發團隊", email = "info@example.com"}
+]
+keywords = ["quantum", "nlp", "semantic", "AI", "reasoning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.68.0", "uvicorn>=0.15.0"]
+cli = ["click>=8.0.0"]
+dev = ["pytest>=6.0.0", "black>=21.5b2", "isort>=5.9.1"]
+
+[tool.setuptools]
+packages = ["psi_runtime_sdk"]

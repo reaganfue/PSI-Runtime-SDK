@@ -1,0 +1,22 @@
+# 基本依賴
+numpy>=1.20.0
+scipy>=1.7.0
+pandas>=1.3.0
+matplotlib>=3.4.0
+pyyaml>=6.0
+requests>=2.25.0
+
+# 日誌和監控
+logging>=0.5.1.2
+
+# API 服務 (可選)
+fastapi>=0.68.0
+uvicorn>=0.15.0
+
+# CLI 工具 (可選)
+click>=8.0.0
+
+# 開發工具 (可選)
+pytest>=6.0.0
+black>=21.5b2
+isort>=5.9.1
