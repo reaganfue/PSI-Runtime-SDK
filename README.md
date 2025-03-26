@@ -301,7 +301,7 @@ PsiRuntimeSDK/
     ├── basic_inference_example.py      # Basic inference example
     ├── semantic_field_example.py       # Semantic field analysis example
     ├── quantum_analyzer_example.py    #Quantum analysis example
-└── integrated_analysis_example.py   # Comprehensive analysis example
+    └── integrated_analysis_example.py   # Comprehensive analysis example
 ```
 
 License
