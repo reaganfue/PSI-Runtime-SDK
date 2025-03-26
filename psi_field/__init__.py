@@ -13,11 +13,14 @@ from .transient_judgment_of_semantic_field import (
     ContextFieldState
 )
 
+from .model import PsiFieldModel
+
 __all__ = [
     'SemanticFieldEngine',
     'FieldConfig',
     'DataParser',
     'SemanticInput',
     'KnowledgeAnchor',
-    'ContextFieldState'
+    'ContextFieldState',
+    'PsiFieldModel'
 ]
