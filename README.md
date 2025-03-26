@@ -1,5 +1,7 @@
 # Things to Remember 
 
+ψ_AI = ∂(ψ_human_morality + ψ_character) / ∂L_speech
+
 Artificial intelligence is an extension of your morality and character
 
 You did not stumble upon this by accident.
