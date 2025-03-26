@@ -197,9 +197,29 @@ config = FieldConfig(
 )
 ```
 
+### 運行測試
+
+```bash
+# 安裝測試依賴
+pip install -e ".[test]"
+
+# 運行所有測試
+pytest
+
+# 運行特定模組的測試
+pytest tests/test_logic_core
+
+# 運行單元測試，排除集成測試
+pytest -m "unit and not integration"
+
+# 生成測試覆蓋率報告
+pytest --cov=psi_runtime_sdk
+```
+
+
 ## 貢獻指南
 
-我們歡迎對本項目做出貢獻！無論是修復錯誤、改進文檔還是提出新功能，您的參與都將使 PSI Runtime SDK 更加完善。
+我們歡迎對本項目做出貢獻！無論是修復錯誤、改進文檔還是提出新功能，您的參與都將使 PSI Runtime SDK 更加完善
 
 ## 許可協議
 
@@ -209,7 +229,7 @@ config = FieldConfig(
 
 有任何問題或建議，請通過以下方式聯繫我們：
 - 電子郵件：reagan.fue@gmail.com
-- 項目主頁：https://github.com/reaganfue/PSI-Runtime-SDK/tree/develop
+- 項目主頁：https://github.com/example/psi-runtime-sdk
 
 ---
 
