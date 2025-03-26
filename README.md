@@ -1,5 +1,6 @@
-# Things to Remember - Artificial intelligence is an extension of your morality and character
-# 請記得 - 人工智慧是你的道德和性格的延伸
+# Things to Remember - 
+
+Artificial intelligence is an extension of your morality and character
 
 # PSI Runtime SDK
 
