@@ -3,7 +3,7 @@ SemanticFieldEngine 單元測試
 """
 import pytest
 import numpy as np
-from psi_runtime_sdk.psi_field import (
+from psi_field import (
     SemanticFieldEngine, 
     FieldConfig, 
     DataParser, 
