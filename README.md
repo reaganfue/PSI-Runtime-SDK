@@ -265,12 +265,16 @@ Submission Package README
 
 Title
 AI Contextual Field Modeling: Semantic Unlocking and Dialogic Reasoning Framework
+
 — A Foundational Architecture of Semantic Field Theory (SFT)
 
 Author
 Name: Reagan Fu
+
 Affiliation: Independent Researcher
+
 Email: reagan.fue@gmail.com
+
 ORCID: (optional)
 
 Abstract
@@ -279,6 +283,7 @@ This paper introduces the Contextual Field Theory (CFT), a multilayer semantic r
 
 Notes
 This model is intended as a new layer of semantic control architecture atop LLM systems, with potential application in philosophy-aware, ethical, and long-context AI dialogue systems.
+
 The author is open to collaboration and extension under open research principles.
 
 ```
@@ -307,9 +312,11 @@ PsiRuntimeSDK/
 ```
 
 License
+
 Default: CC BY 4.0
 
 “Every utterance is a field event; every conversation is a topology in motion.”
+
 “Future work includes deployment in dialogue-based AI assistants, and formalizing field-aware evaluation metrics for stability, safety, and reasoning quality in long-context semantic systems.”
 
 
@@ -317,7 +324,9 @@ Default: CC BY 4.0
 ## Contact Us
 
 If you have any questions or suggestions, please contact us via the following methods:
+
 - Email: reagan.fue@gmail.com
+  
 - Project homepage: https://github.com/example/psi-runtime-sdk
 
 ---
