@@ -19,6 +19,7 @@ setup(
         "api": ["fastapi>=0.68.0", "uvicorn>=0.15.0"],
         "cli": ["click>=8.0.0"],
         "dev": ["pytest>=6.0.0", "black>=21.5b2", "isort>=5.9.1"],
+        "test": ["pytest>=6.0.0", "pytest-cov>=2.12.0"],
     },
     python_requires=">=3.8",
     author="AI開發團隊",
