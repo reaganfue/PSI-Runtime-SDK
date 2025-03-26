@@ -327,7 +327,7 @@ If you have any questions or suggestions, please contact us via the following me
 
 - Email: reagan.fue@gmail.com
   
-- Project homepage: https://github.com/example/psi-runtime-sdk
+- Project homepage: https://github.com/reaganfue/PSI-Runtime-SDK
 
 ---
 
