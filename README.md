@@ -279,7 +279,7 @@ Notes
 This model is intended as a new layer of semantic control architecture atop LLM systems, with potential application in philosophy-aware, ethical, and long-context AI dialogue systems.
 The author is open to collaboration and extension under open research principles.
 
-
+```
 Files
 PsiRuntimeSDK/
 ├── README.md              # Project Description Document
@@ -302,6 +302,7 @@ PsiRuntimeSDK/
     ├── semantic_field_example.py       # Semantic field analysis example
     ├── quantum_analyzer_example.py    #Quantum analysis example
 └── integrated_analysis_example.py   # Comprehensive analysis example
+```
 
 License
 Default: CC BY 4.0
