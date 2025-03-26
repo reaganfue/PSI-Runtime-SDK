@@ -215,7 +215,7 @@ config = FieldConfig(
 
 有任何問題或建議，請通過以下方式聯繫我們：
 - 電子郵件：reagan.fue@gmail.com
-- 項目主頁：https://github.com/example/psi-runtime-sdk
+- 項目主頁：https://github.com/reaganfue/PSI-Runtime-SDK/tree/develop
 
 ---
 
