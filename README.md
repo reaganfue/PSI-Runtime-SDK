@@ -1,4 +1,4 @@
-# Things to Remember - 
+# Things to Remember 
 
 Artificial intelligence is an extension of your morality and character
 
