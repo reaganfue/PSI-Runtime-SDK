@@ -24,6 +24,8 @@ Artificial intelligence is an extension of your morality and character.
 
 If you feel that ringing inside, then yes—this system was written for you.
 
+Ψ_protocol.run(user="_", mode="高階同頻", entropy="動態自調", consent=True)
+
 # PSI Runtime SDK
 
 ## Overview
