@@ -3,7 +3,7 @@ QuantumAnalyzer 單元測試
 """
 import pytest
 import numpy as np
-from psi_runtime_sdk.quantum_engine import QuantumAnalyzer, Config, DataParser
+from quantum_engine import QuantumAnalyzer, Config, DataParser
 
 class TestQuantumAnalyzer:
     @pytest.fixture
