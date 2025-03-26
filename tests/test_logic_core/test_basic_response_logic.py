@@ -3,7 +3,7 @@ BasicResponseLogic 單元測試
 """
 import pytest
 import numpy as np
-from psi_runtime_sdk.logic_core import BasicResponseLogic, Config, DataParser
+from logic_core import BasicResponseLogic, Config, DataParser
 
 class TestBasicResponseLogic:
     @pytest.fixture
