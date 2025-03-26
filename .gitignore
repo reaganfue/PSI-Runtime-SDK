@@ -1,0 +1,98 @@
+# === Python 基本 ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.Python
+env/
+venv/
+ENV/
+.venv/
+.idea/
+.mypy_cache/
+.pytest_cache/
+.tox/
+.coverage
+coverage.xml
+htmlcov/
+.cache/
+.dmypy.json
+.pyre/
+*.log
+
+# === VS Code / PyCharm / Jupyter 等工具 ===
+.vscode/
+*.code-workspace
+*.ipynb_checkpoints/
+.ipynb_checkpoints/
+*.sublime-workspace
+*.sublime-project
+*.DS_Store
+
+# === 安裝與打包相關 ===
+*.whl
+*.tar.gz
+*.zip
+*.manifest
+*.spec
+
+# === 測試報告與覆蓋率資料 ===
+tests/__pycache__/
+tests/*.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# === 檔案備份與暫存 ===
+*.bak
+*.tmp
+*.swp
+*.swo
+*~
+*.orig
+
+# === 機器學習/語意場模型暫存 ===
+models/
+checkpoints/
+logs/
+output/
+runs/
+*.ckpt
+*.pt
+*.onnx
+*.tflite
+
+# === Docs / Build 工具 ===
+site/
+docs/_build/
+*.db
+*.pdf
+
+# === Overleaf / TeX 文件 ===
+*.aux
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.log
+*.lof
+*.lot
+*.bbl
+*.blg
+*.brf
+
+# === 自定義忽略資料夾（如：本地測試區） ===
+dev_local/
+drafts/
+local_config.json
+examples/*_output.txt
+examples/temp/
+.env
