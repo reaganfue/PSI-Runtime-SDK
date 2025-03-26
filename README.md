@@ -201,12 +201,6 @@ config = FieldConfig(
 
 我們歡迎對本項目做出貢獻！無論是修復錯誤、改進文檔還是提出新功能，您的參與都將使 PSI Runtime SDK 更加完善。
 
-1. Fork 這個專案
-2. 創建您的特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交您的改動 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 開啟一個 Pull Request
-
 ## 許可協議
 
 本項目採用 MIT 許可協議。詳情請參閱 `LICENSE` 文件。
