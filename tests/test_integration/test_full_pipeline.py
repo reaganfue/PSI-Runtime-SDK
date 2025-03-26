@@ -2,9 +2,9 @@
 PSI Runtime SDK 整合測試
 """
 import pytest
-from psi_runtime_sdk.logic_core import BasicResponseLogic, Config as BRLConfig
-from psi_runtime_sdk.psi_field import SemanticFieldEngine, FieldConfig, DataParser as PsiDataParser
-from psi_runtime_sdk.quantum_engine import QuantumAnalyzer, Config as QAConfig
+from logic_core import BasicResponseLogic, Config as BRLConfig
+from psi_field import SemanticFieldEngine, FieldConfig, DataParser as PsiDataParser
+from quantum_engine import QuantumAnalyzer, Config as QAConfig
 
 class TestIntegration:
     @pytest.fixture
