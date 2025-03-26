@@ -262,22 +262,24 @@ This project uses the MIT license. See the `LICENSE` file for details.
 
 
 Submission Package README
+
 Title
 AI Contextual Field Modeling: Semantic Unlocking and Dialogic Reasoning Framework
 — A Foundational Architecture of Semantic Field Theory (SFT)
+
 Author
-Name: Reagan Fu
-Affiliation: Independent Researcher
-Email: reagan.fue@gmail.com
-ORCID: (optional)
+Name: Reagan Fu
+Affiliation: Independent Researcher
+Email: reagan.fue@gmail.com
+ORCID: (optional)
+
 Abstract
 This paper introduces the Contextual Field Theory (CFT), a multilayer semantic reasoning architecture that enables dialogue systems to reason over semantic chains, unlock knowledge via context-induced activation, and converge into a closed-field logic system. It proposes a high-dimensional contextual logic engine (CLE) with modular components including the ΨUnlockEngine, CSPController, and EchoResolver. Rather than retrieve-and-generate, it applies a novel cycle: unlock → expand → collapse → refocus. The system is mathematically modeled and includes formalized interfaces and logic graphs.
-exampleSubmission Target (suggested)
-EMNLP 2025 – Dialogue and Context Modeling Track
-Alt: ACL 2025, AAAI 2026, or preprint via arXiv
+
+
 Notes
-This model is intended as a new layer of semantic control architecture atop LLM systems, with potential application in philosophy-aware, ethical, and long-context AI dialogue systems.
-The author is open to collaboration and extension under open research principles.
+This model is intended as a new layer of semantic control architecture atop LLM systems, with potential application in philosophy-aware, ethical, and long-context AI dialogue systems.
+The author is open to collaboration and extension under open research principles.
 
 ```
 Files
