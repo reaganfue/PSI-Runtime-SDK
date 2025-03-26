@@ -12,10 +12,13 @@ from .basic_response_logic import (
     ReportGenerator
 )
 
+from .core import LogicCore
+
 __all__ = [
     'BasicResponseLogic',
     'Config',
     'DataParser',
     'QueryEngine',
-    'ReportGenerator'
+    'ReportGenerator',
+    'LogicCore'
 ]
