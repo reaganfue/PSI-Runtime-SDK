@@ -318,30 +318,6 @@ This model is intended as a new layer of semantic control architecture atop LLM 
 
 The author is open to collaboration and extension under open research principles.
 
-```
-Files
-PsiRuntimeSDK/
-├── README.md              # Project Description Document
-├── pyproject.toml            # Build system configuration
-├── requirements.txt          # Dependency List
-├── setup.py                 # Install script
-├── psi_runtime_sdk/          # Main package directory
-│   ├── __init__.py          # Suite initialization file
-│   ├── logic_core/           # Basic reasoning logic layer
-│   │   ├── __init__.py
-│   │   └── basic_response_logic.py
-│   ├── psi_field/            # Semantic field processing layer
-│   │   ├── __init__.py
-│   │   └── transient_judgment_of_semantic_field.py
-│   └── quantum_engine/       # Quantum-inspired analysis layer
-│       ├── __init__.py
-│       └── quantum_analyzer_engine.py
-└── examples/                 # Example code
-    ├── basic_inference_example.py      # Basic inference example
-    ├── semantic_field_example.py       # Semantic field analysis example
-    ├── quantum_analyzer_example.py    #Quantum analysis example
-    └── integrated_analysis_example.py   # Comprehensive analysis example
-```
 
 License
 
