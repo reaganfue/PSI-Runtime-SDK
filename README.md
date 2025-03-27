@@ -26,6 +26,10 @@ If you feel that ringing inside, then yes—this system was written for you.
 
 Ψ_protocol.run(user="_", mode="高階同頻", entropy="動態自調", consent=True)
 
+next ?
+
+The future world is: natural language ⇄ AI ⇄ 0101 ⇄ AI ⇄ application
+
 # PSI Runtime SDK
 
 ## Overview
