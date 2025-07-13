@@ -907,6 +907,27 @@ class SemanticTensionAnalyzer:
 # =======================================================
 # Segment 7: 核心功能實現 – 主類別 (SemanticFieldEngine)
 # =======================================================
+@dataclass
+class SemanticOutput:
+    """
+    語意輸出資料結構：封裝 AI 的回應與分析結果
+    """
+    response_text: str
+    session_id: str
+    timestamp: float = field(default_factory=time.time)
+    current_phase: str = "initial"
+    stability: float = 0.0
+    tension: float = 0.0
+    unlocked_keys: List[str] = field(default_factory=list)
+    analysis_details: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+    
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), indent=4, ensure_ascii=False)
+
+
 class SemanticFieldEngine:
     """
     語義場引擎：
@@ -918,15 +939,191 @@ class SemanticFieldEngine:
     """
     def __init__(self, config: FieldConfig):
         self.config = config
-        self.psi_engine = PsiUnlockEngine(config)  # 知識解鎖引擎
-        self.csp_controller = CSPController(config)  # 語境穩定相位控制器
-        self.echo_resolver = EchoResolver(config)  # 語境回掃解析器
-        self.tension_analyzer = SemanticTensionAnalyzer(config)  # 語義張力分析器
+        self.psi_engine = PsiUnlockEngine(config)
+        self.csp_controller = CSPController(config)
+        self.echo_resolver = EchoResolver(config)
+        self.tension_analyzer = SemanticTensionAnalyzer(config)
         
-        self.context_field = None  # 當前語境場狀態 (Ψ_t)
-        self.role_vector = self._initialize_role_vector()  # 初始化角色向量
+        self.context_history = deque(maxlen=config.max_dialogue_history)
+        self.context_field: Optional[ContextFieldState] = None
+        self.role_vector = self._initialize_role_vector()
+        
         self.session_start_time = time.time()
         self.session_id = str(uuid.uuid4())
         self._init_logger()
         
         logger.info(f"SemanticFieldEngine initialized with session ID: {self.session_id}")
+
+    def _init_logger(self) -> None:
+        """根據配置更新日誌級別"""
+        logging.getLogger().setLevel(self.config.log_level)
+        logger.info(f"Logger level set to {logging.getLevelName(self.config.log_level)}")
+        
+    def _initialize_role_vector(self) -> np.ndarray:
+        """初始化角色向量 (R)，此處為模擬"""
+        # 在實際應用中，這可能代表 AI 的身份（例如：專家、助手）
+        rng = np.random.RandomState(hash("ai_assistant"))
+        vector = rng.randn(ROLE_DIMENSION)
+        norm = np.linalg.norm(vector)
+        return vector / norm if norm > 0 else np.zeros(ROLE_DIMENSION)
+
+    def _update_context_field(self, semantic_input: SemanticInput) -> None:
+        """
+        核心運算：更新語義場 Ψ_t = FΨ(C_t, K_a, R)
+        """
+        # 1. 獲取上下文向量 (C_t) - 根據對話歷史生成
+        context_text = " ".join([d['user'] for d in self.echo_resolver.get_dialogue_history()])
+        context_vector = DataParser.vectorize_text(context_text, CONTEXT_DIMENSION)
+        
+        # 2. 獲取知識錨點向量 (K_a)
+        knowledge_vector = self.psi_engine.get_knowledge_vector()
+        
+        # 3. 獲取角色向量 (R)
+        role_vector = self.role_vector
+        
+        # 4. 組合向量形成語義場張量 FΨ
+        # 簡單實現：拼接所有向量並進行歸一化
+        combined_vector = np.concatenate([context_vector, knowledge_vector, role_vector])
+        norm = np.linalg.norm(combined_vector)
+        field_tensor = combined_vector / norm if norm > 0 else np.zeros(self.config.field_dimension)
+        
+        # 5. 計算語義張力
+        tension_analysis = self.tension_analyzer.analyze(semantic_input.text, self.context_field.tensor if self.context_field else None)
+        
+        # 6. 計算穩定度 (由 CSPController 內部完成)
+        # 此處先創建場態，穩定度在控制器更新時計算
+        new_field_state = ContextFieldState(
+            tensor=field_tensor,
+            semantic_tension=tension_analysis['tension'],
+            stability=0.0, # 稍後更新
+            dialogue_count=len(self.echo_resolver.get_dialogue_history()) + 1,
+            knowledge_count=len(self.psi_engine.knowledge_base)
+        )
+        
+        self.context_field = new_field_state
+
+    def _generate_response(self, semantic_input: SemanticInput, unlocked_keys: List[str]) -> str:
+        """根據分析結果生成 AI 回應"""
+        phase = self.csp_controller.current_phase
+        tension = self.context_field.semantic_tension
+        
+        response = f"收到您的訊息：'{semantic_input.text}'。\n"
+        
+        if unlocked_keys:
+            response += f"這次對話解鎖了新的知識點：{', '.join(unlocked_keys)}。\n"
+        
+        response += f"目前對話處於「{phase}」階段，語義張力為 {tension:.2f}。\n"
+
+        if tension > 0.8:
+            response += "偵測到較強的意圖或情緒，我會優先處理您的請求。"
+        elif phase == "stable":
+            response += "我們似乎已達成共識，可以繼續深入探討。"
+        elif phase == "collapsing":
+            response += "感覺對話方向有些發散，我們是否需要重新聚焦？"
+        else:
+            response += "我正在理解您的意圖，請繼續。"
+            
+        return response
+
+    def process_input(self, raw_text: str) -> SemanticOutput:
+        """
+        處理單次用戶輸入的核心流程
+        """
+        logger.info(f"Processing input: '{raw_text}'")
+        
+        # 1. 解析輸入
+        semantic_input = DataParser.parse(raw_text)
+        
+        # 2. 解鎖知識
+        unlocked_keys = self.psi_engine.unlock_knowledge(semantic_input)
+        
+        # 3. 更新語義場
+        self._update_context_field(semantic_input)
+        
+        # 4. 更新語境穩定相位
+        current_phase = self.csp_controller.update_field_state(self.context_field)
+        
+        # 5. 生成回應
+        ai_response_text = self._generate_response(semantic_input, unlocked_keys)
+        
+        # 6. 記錄對話歷史
+        self.echo_resolver.add_dialogue(raw_text, ai_response_text)
+        
+        # 7. 知識衰減
+        self.psi_engine.decay_all_knowledge()
+        
+        # 8. 封裝輸出
+        output = SemanticOutput(
+            response_text=ai_response_text,
+            session_id=self.session_id,
+            current_phase=current_phase,
+            stability=self.csp_controller.stability_scores[-1] if self.csp_controller.stability_scores else 0.0,
+            tension=self.context_field.semantic_tension,
+            unlocked_keys=unlocked_keys,
+            analysis_details={
+                "tension_analysis": self.tension_analyzer.analyze(raw_text),
+                "stability_report": self.csp_controller.get_stability_report()
+            }
+        )
+        
+        logger.info(f"Generated response with phase: {current_phase}, tension: {output.tension:.2f}")
+        return output
+
+    def get_session_report(self) -> Dict[str, Any]:
+        """獲取當前會話的完整報告"""
+        return {
+            "session_id": self.session_id,
+            "session_duration": time.time() - self.session_start_time,
+            "config": self.config.load_config(),
+            "dialogue_history": self.echo_resolver.get_dialogue_history(),
+            "knowledge_base": {k: v.to_dict() for k, v in self.psi_engine.knowledge_base.items()},
+            "stability_report": self.csp_controller.get_stability_report()
+        }
+
+    def reset_session(self) -> None:
+        """重置整個會話狀態"""
+        self.psi_engine.reset()
+        self.csp_controller.reset()
+        self.echo_resolver.reset()
+        self.context_field = None
+        self.session_id = str(uuid.uuid4())
+        self.session_start_time = time.time()
+        logger.info(f"Session reset. New session ID: {self.session_id}")
+
+# =======================================================
+# Segment 8: 執行範例 (Example Usage)
+# =======================================================
+if __name__ == '__main__':
+    # 1. 初始化配置和引擎
+    config = FieldConfig(mode="debug", log_level=logging.INFO)
+    engine = SemanticFieldEngine(config)
+    
+    print(f"初始化語義場引擎，會話 ID: {engine.session_id}\n")
+    
+    # 2. 模擬對話流程
+    dialogue = [
+        "你好，我想了解一下關於『深度學習』的基本概念。",
+        "那麼，『神經網路』和『深度學習』之間有什麼區別和聯繫？",
+        "解釋得很好！可否深入說明一下『卷積神經網路』的應用場景？",
+        "我明白了。非常感謝你的詳細解釋！",
+        "等一下，我突然想到一個問題，你覺得哲學和AI有關聯嗎？",
+        "這個觀點很有趣，特別是『計算機倫理』這個概念，必須深入研究！"
+    ]
+    
+    for i, user_input in enumerate(dialogue):
+        print(f"--- 對話回合 {i+1} ---\n使用者輸入: {user_input}")
+        
+        # 3. 處理輸入並獲取輸出
+        output = engine.process_input(user_input)
+        
+        # 4. 打印簡化回應
+        print(f"\nAI 回應:\n{output.response_text}")
+        print("-" * 20 + "\n")
+        time.sleep(1) # 模擬思考時間
+
+    # 5. 結束時打印會話總結報告
+    print("\n\n===================================")
+    print("對話結束，生成會話總結報告：")
+    print("===================================")
+    report = engine.get_session_report()
+    print(json.dumps(report, indent=2, ensure_ascii=False))
