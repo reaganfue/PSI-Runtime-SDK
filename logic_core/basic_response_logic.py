@@ -1,1236 +1,622 @@
 #!/usr/bin/env python
 # coding: utf-8
-"""
+
 # =======================================================
 # Segment 1: 模組說明 (Module Docstring)
 # =======================================================
+"""
+模組名稱：AdvancedLogicCore
 
-模組名稱：Basic_Response_Logic
-用途：實現一套完整的 AI 邏輯流程系統，處理從自然語言輸入到量子態演化的推理過程
-應用場景：智能客服、決策支援、語意理解、知識推理等情境
+用途：
+    實現一套完整的、企業級的 AI 邏輯流程系統。本模組將一個複雜的、
+    多階段的推理過程進行了架構性重構，以管線化的方式處理從自然語言
+    輸入到多維度狀態演化，最終生成結構化決策建議的完整流程。
+
+應用場景：
+    - 智慧客服系統中的深度意圖理解
+    - 複雜決策支援分析
+    - 多維度語意理解與知識推理
+    - 需要可追溯、可解釋思考過程的高階 AI 應用
+
 結構設計理念：
-    1. 分層處理：從輸入解析→意圖對齊→量子態演化→自適應學習→因果推理→遞歸修正→全局整合
-    2. 模組化設計：每個步驟皆有獨立模組，可替換或擴展
-    3. 可觀測性：完整的日誌追蹤與錯誤處理機制
-    4. 可擴展性：支持未來語境生成與人機融合推理
+    1. **分層與管線化 (Layered & Pipelined)**: 將原始設計中的七個核心
+       處理步驟（輸入解析→意圖對齊→量子態演化→自適應學習→因果推理→
+       遞歸修正→全局整合）抽象為一系列獨立、可插拔的「管線階段」
+       (Pipeline Stages)。
+    2. **模組化與策略模式 (Modular & Strategy Pattern)**: 每個處理階段
+       都是一個獨立的模組（策略），可以被輕易地替換、重排或擴展，而
+       不影響管線的其他部分。
+    3. **可觀測性與資料契約 (Observability & Data Contracts)**: 整個
+       推理流程中的狀態由一個統一的、強類型的 `PipelineState` 物件承載，
+       取代了易錯的字典。這使得資料的流動清晰可見，並提供了完整的日誌
+       追蹤與錯誤處理機制。
+    4. **可擴展性 (Extensibility)**: 架構本身為未來的擴展預留了清晰的
+       介面，例如支持更複雜的「未來語境生成」或「人機融合推理」作為
+       新的管線階段加入。
 
-版本：1.0.0
-作者：AI 開發團隊
-更新日期：2025-03-12
+版本：2.0.0
+作者：AI 開發團隊 (Refactored by AI Assistant)
+更新日期：2025-07-14
 """
 
 # =======================================================
 # Segment 2: 模組匯入與基礎設置 (Imports & Setup)
 # =======================================================
-
-import logging
-import math
+# --- 標準庫 ---
+from __future__ import annotations
 import json
-import os
-import sys
+import logging
 import time
-import numpy as np
-import datetime
-from typing import Any, Dict, List, Tuple, Union, Optional
-from dataclasses import dataclass, field
+import uuid
+from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-# 設定 Logging
+# --- 第三方庫 ---
+import numpy as np
+
+# --- 日誌設定 ---
 logging.basicConfig(
-    level=logging.INFO, 
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s] %(message)s",
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler("basic_response_logic.log")
+        logging.FileHandler("advanced_logic_core.log", mode='w', encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)
 
-# 全域常數
-EPS = 1e-8  # 數值穩定性常數
-K = 10      # 意圖類別數量
-N_STATE = 10  # 量子態向量維度
-DEFAULT_TIMEOUT = 30  # 秒
-GLOBAL_DIMENSIONS = ["知識深度", "時間推理", "情境理解"]  # 全域維度列表
-
 # =======================================================
 # Segment 3: 配置管理區塊 (Configuration)
 # =======================================================
-
 @dataclass
-class ModelConfig:
-    """模型配置數據類，包含所有可調參數"""
+class LogicCoreConfig:
+    """
+    邏輯核心的統一配置中心。
+    - 集中管理所有可調參數，取代了原有的 Config 和 ModelConfig。
+    - 支援從檔案載入、保存和動態更新。
+    """
+    # --- 系統行為配置 ---
+    log_level: str = "INFO"
+    debug_mode: bool = False
+    output_dir: str = "./output"
+
+    # --- 演算法超參數 (原 ModelConfig) ---
     learning_rate: float = 0.01
     max_iterations: int = 100
     convergence_threshold: float = 0.001
-    use_quantum_simulation: bool = True
+    enable_quantum_simulation: bool = True
     causal_weight: float = 0.5
+    
+    # --- 維度和意圖配置 ---
+    intent_categories: int = 10
+    state_vector_dimension: int = 10
+    semantic_vector_dimension: int = 768 # 模擬 BERT 的維度
+    global_dimensions: List[str] = field(default_factory=lambda: ["知識深度", "時間推理", "情境理解"])
+    
+    # --- 行為控制 ---
+    memory_capacity: int = 10
+    
+    # --- 數值穩定性 ---
+    epsilon: float = 1e-8
 
-class Config:
-    """
-    配置管理類別，負責管理系統運行所需的所有設定。
-    
-    功能:
-    - 載入/保存配置
-    - 更新運行時參數
-    - 提供默認參數
-    - 維護系統狀態
-    """
-    def __init__(self, timestamp: str = None, model_config: ModelConfig = None, 
-                 log_level: str = "INFO", debug_mode: bool = False):
-        """
-        初始化配置管理器
-        
-        參數:
-            timestamp (str, optional): 時間戳記，預設為當前UTC時間
-            model_config (ModelConfig, optional): 模型參數配置
-            log_level (str, optional): 日誌級別，可選 DEBUG/INFO/WARNING/ERROR/CRITICAL
-            debug_mode (bool, optional): 是否啟用調試模式
-        """
-        self.timestamp = timestamp or datetime.datetime.utcnow().isoformat()
-        self.model_config = model_config or ModelConfig()
-        self.log_level = log_level
-        self.debug_mode = debug_mode
-        self._init_logging()
-        
-        # 系統路徑配置
-        self.base_path = os.path.dirname(os.path.abspath(__file__))
-        self.data_path = os.path.join(self.base_path, "data")
-        self.output_path = os.path.join(self.base_path, "output")
-        
-        # 確保必要目錄存在
-        self._ensure_directories()
-        logger.info(f"配置初始化完成，時間戳: {self.timestamp}")
-    
-    def _init_logging(self) -> None:
-        """設置日誌級別"""
-        numeric_level = getattr(logging, self.log_level.upper(), None)
+    def __post_init__(self):
+        """配置實例化後執行的初始化邏輯。"""
+        # 1. 設置日誌級別
+        numeric_level = getattr(logging, self.log_level.upper(), logging.INFO)
         if isinstance(numeric_level, int):
-            logger.setLevel(numeric_level)
-    
-    def _ensure_directories(self) -> None:
-        """確保所需目錄存在"""
-        for path in [self.data_path, self.output_path]:
-            if not os.path.exists(path):
-                os.makedirs(path)
-                logger.debug(f"已創建目錄: {path}")
-    
-    def update_config(self, **kwargs) -> None:
-        """
-        更新配置參數
+            logging.getLogger().setLevel(numeric_level)
+            logger.info(f"Logger level set to '{self.log_level.upper()}'.")
         
-        參數:
-            **kwargs: 鍵值對格式的配置參數
-        """
+        # 2. 確保輸出目錄存在
+        Path(self.output_dir).mkdir(exist_ok=True, parents=True)
+        logger.debug(f"Output directory ensured at: '{self.output_dir}'.")
+    
+    def update(self, **kwargs) -> None:
+        """動態、安全地更新配置參數。"""
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
-                logger.debug(f"更新配置: {key} = {value}")
-            elif hasattr(self.model_config, key):
-                setattr(self.model_config, key, value)
-                logger.debug(f"更新模型配置: {key} = {value}")
+                logger.debug(f"Configuration updated: {key} = {value}")
             else:
-                logger.warning(f"無法識別的配置參數: {key}")
-    
-    def load_config(self, config_file: str = None) -> Dict[str, Any]:
-        """
-        從檔案載入配置或返回當前配置
-        
-        參數:
-            config_file (str, optional): 配置檔案路徑
-            
-        返回:
-            Dict[str, Any]: 配置字典
-        """
-        if config_file and os.path.exists(config_file):
-            try:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    loaded_config = json.load(f)
-                    self.update_config(**loaded_config)
-                    logger.info(f"已從 {config_file} 載入配置")
-                    return loaded_config
-            except Exception as e:
-                logger.error(f"載入配置檔案時發生錯誤: {e}")
-        
-        # 返回當前配置
-        return {
-            "timestamp": self.timestamp,
-            "global_dimensions": GLOBAL_DIMENSIONS,
-            "log_level": self.log_level,
-            "debug_mode": self.debug_mode,
-            "model_config": self.model_config.__dict__
-        }
-    
-    def save_config(self, config_file: str) -> bool:
-        """
-        保存當前配置到檔案
-        
-        參數:
-            config_file (str): 配置檔案路徑
-            
-        返回:
-            bool: 成功保存返回 True，否則返回 False
-        """
+                logger.warning(f"Attempted to update unknown config parameter: '{key}'.")
+
+    @classmethod
+    def from_file(cls, path: str | Path) -> LogicCoreConfig:
+        """從 JSON 檔案安全地載入配置，並返回一個新的配置實例。"""
+        config_path = Path(path)
+        if not config_path.is_file():
+            raise ConfigurationError(f"Config file not found at: {config_path}")
         try:
-            # 創建配置字典
-            config_dict = self.load_config()
-            
-            # 寫入檔案
-            with open(config_file, 'w', encoding='utf-8') as f:
-                json.dump(config_dict, f, indent=4, ensure_ascii=False)
-            
-            logger.info(f"配置已保存至 {config_file}")
-            return True
+            with config_path.open('r', encoding='utf-8') as f:
+                data = json.load(f)
+            return cls(**data)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ConfigurationError(f"Failed to load or parse config from '{config_path}': {e}")
+
+    def save_to_file(self, path: str | Path) -> None:
+        """將當前配置儲存到 JSON 檔案。"""
+        config_path = Path(path)
+        try:
+            with config_path.open('w', encoding='utf-8') as f:
+                json.dump(asdict(self), f, indent=4, ensure_ascii=False)
+            logger.info(f"Configuration successfully saved to '{config_path}'.")
         except Exception as e:
-            logger.error(f"保存配置時發生錯誤: {e}")
-            return False
+            raise ConfigurationError(f"Failed to save config to '{config_path}': {e}")
 
 # =======================================================
 # Segment 4: 資料結構 / 解析區塊 (Data Structures)
 # =======================================================
-
-class InputValidationError(Exception):
-    """輸入驗證錯誤類"""
+# --- 自訂錯誤類型 ---
+class LogicCoreError(Exception):
+    """邏輯核心模組的基礎錯誤類型。"""
     pass
 
-class ProcessingError(Exception):
-    """處理過程錯誤類"""
+class ConfigurationError(LogicCoreError):
+    """配置相關錯誤。"""
     pass
 
-@dataclass
-class InputContext:
-    """輸入上下文數據類"""
-    text: str
-    timestamp: str
-    semantic_vector: np.ndarray = None
-    intent: int = -1
-    entropy: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+class InputValidationError(LogicCoreError):
+    """輸入驗證失敗時引發。"""
+    pass
 
-@dataclass
-class DimensionState:
-    """維度狀態數據類"""
-    name: str
-    state: np.ndarray
-    entropy: float = 0.0
-    weight: float = 0.0
-    confidence: float = 0.0
+class ProcessingError(LogicCoreError):
+    """在處理管線中發生錯誤時引發。"""
+    pass
 
+# --- 核心資料契約 (Data Contracts) ---
 @dataclass
-class InferenceResult:
-    """推理結果數據類"""
-    input_text: str
-    intent: int
-    dimensions: Dict[str, DimensionState]
+class PipelineState:
+    """
+    在推理管線中流動的統一狀態物件。
+    - 這個物件是可變的，它會被每個管線階段逐步地豐富和修改。
+    - 它取代了原始設計中分散的 `InputContext`, `DimensionState` 和
+      在各個方法間傳遞的大型字典。
+    """
+    # --- 初始輸入與配置 ---
+    raw_input: str
+    config: LogicCoreConfig
+    
+    # --- 輸入解析階段產出 ---
+    semantic_vector: Optional[np.ndarray] = None
+    intent_id: Optional[int] = None
+    initial_entropy: Optional[float] = None
+    
+    # --- 各階段的狀態與熵值 ---
+    stage_vectors: Dict[str, np.ndarray] = field(default_factory=dict)
+    stage_entropies: Dict[str, float] = field(default_factory=dict)
+    
+    # --- 最終結果 ---
+    final_score: Optional[float] = None
+    suggestions: Dict[str, Any] = field(default_factory=dict)
+    
+    # --- 元資料與監控 ---
+    session_id: str = field(default_factory=lambda: f"session-{uuid.uuid4()}")
+    start_time: float = field(default_factory=time.perf_counter)
+    processing_history: List[str] = field(default_factory=list)
+
+@dataclass(frozen=True)
+class FinalResult:
+    """
+    標準化的、不可變的最終輸出物件。
+    - 這是整個邏輯核心提供給外部呼叫者的最終產物。
+    - 它融合了原始 `InferenceResult` 的概念，但結構更清晰。
+    """
+    session_id: str
+    raw_input: str
     final_score: float
+    intent_id: int
     suggestions: Dict[str, Any]
-    timestamp: str
-    processing_time: float
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """轉換為字典格式"""
-        result = {
-            "input_text": self.input_text,
-            "intent": self.intent,
-            "dimensions": {},
-            "final_score": self.final_score,
-            "suggestions": self.suggestions,
-            "timestamp": self.timestamp,
-            "processing_time": self.processing_time
-        }
-        
-        # 處理維度狀態轉換
-        for dim_name, dim_state in self.dimensions.items():
-            result["dimensions"][dim_name] = {
-                "entropy": dim_state.entropy,
-                "weight": dim_state.weight,
-                "confidence": dim_state.confidence
-            }
-        
-        return result
+    processing_time_s: float
+    analysis_details: Dict[str, Any]
 
-class DataParser:
-    """
-    資料解析器：負責輸入文本的處理、解析和向量化
-    
-    主要功能:
-    - 驗證輸入格式
-    - 將文本轉換為語義向量
-    - 計算意圖對齊與信息熵
-    - 初始化上下文結構
-    """
-    
-    @staticmethod
-    def validate_input(input_text: str) -> bool:
-        """
-        驗證輸入文本是否有效
+    def to_json(self, indent: int = 2) -> str:
+        """將結果序列化為 JSON 字串，並處理 NumPy 等特殊類型。"""
+        def json_encoder(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            if isinstance(obj, (np.float32, np.float64)):
+                return float(obj)
+            return str(obj)
         
-        參數:
-            input_text (str): 輸入文本
-            
-        返回:
-            bool: 是否有效
-            
-        異常:
-            InputValidationError: 當輸入無效時
+        return json.dumps(asdict(self), indent=indent, ensure_ascii=False, default=json_encoder)
+
+# --- 資料解析器 ---
+class InputParser:
+    """
+    輸入解析器：專門負責輸入文本的驗證與初步處理。
+    """
+    @staticmethod
+    def validate_and_normalize(input_text: str) -> str:
+        """
+        驗證輸入文本的有效性，並進行標準化處理。
         """
         if not isinstance(input_text, str):
-            raise InputValidationError("輸入必須是字符串類型")
+            raise InputValidationError(f"Input must be a string, but got {type(input_text)}.")
         
-        if not input_text.strip():
-            raise InputValidationError("輸入不能為空")
+        normalized_text = input_text.strip()
+        if not normalized_text:
+            raise InputValidationError("Input text cannot be empty or contain only whitespace.")
         
-        if len(input_text) > 1000:
-            logger.warning("輸入文本過長，可能影響處理效率")
-        
-        return True
-
-    @staticmethod
-    def parse_input(input_text: str) -> np.ndarray:
-        """
-        解析輸入並生成語義向量
-        
-        參數:
-            input_text (str): 輸入文本
+        if len(normalized_text) > 5000:
+            logger.warning(f"Input text is very long ({len(normalized_text)} chars), processing might be slow.")
             
-        返回:
-            np.ndarray: 語義向量表示
-        """
-        try:
-            DataParser.validate_input(input_text)
-            logger.info(f"解析輸入文本 (長度: {len(input_text)}) 並生成語義向量")
-            
-            # 模擬 BERT 或其他嵌入模型的輸出，生成 768 維向量
-            # 實際實現可以接入真實的語言模型
-            h_t = np.random.rand(768)
-            h_t = h_t / np.linalg.norm(h_t)  # 標準化
-            
-            return h_t
-        except Exception as e:
-            logger.error(f"解析輸入時發生錯誤: {e}")
-            raise ProcessingError(f"無法解析輸入: {str(e)}")
-
-    @staticmethod
-    def align_intent(h_t: np.ndarray) -> Tuple[int, float]:
-        """
-        進行意圖對齊並計算信息熵
-        
-        參數:
-            h_t (np.ndarray): 語義向量
-            
-        返回:
-            Tuple[int, float]: (意圖索引, 信息熵)
-        """
-        logger.info("計算意圖得分與熵值")
-        try:
-            # 模擬意圖分類器，定義權重矩陣 W_bert (768 x K)
-            W_bert = np.random.rand(768, K)
-            
-            # 計算意圖得分：z_c = W_bert^T * h_t
-            z_c = np.dot(W_bert.T, h_t)
-            
-            # 計算 softmax
-            z_c_max = np.max(z_c)
-            exp_z = np.exp(z_c - z_c_max)
-            p_c = exp_z / (np.sum(exp_z) + EPS)
-            
-            # 選擇意圖：argmax
-            intent = int(np.argmax(p_c))
-            
-            # 計算熵值 H(p_c)
-            H_p_c = -np.sum(p_c * np.log2(p_c + EPS))
-            
-            logger.debug(f"意圖: {intent}, 熵值: {H_p_c:.4f}")
-            return intent, H_p_c
-        except Exception as e:
-            logger.error(f"意圖對齊時發生錯誤: {e}")
-            # 出錯時返回默認值
-            return 0, 1.0
-
-    @staticmethod
-    def create_context(input_text: str, timestamp: str, semantic_vector: np.ndarray, 
-                       intent: int, entropy: float) -> InputContext:
-        """
-        創建輸入上下文
-        
-        參數:
-            input_text (str): 輸入文本
-            timestamp (str): 時間戳
-            semantic_vector (np.ndarray): 語義向量
-            intent (int): 意圖索引
-            entropy (float): 意圖熵
-            
-        返回:
-            InputContext: 輸入上下文對象
-        """
-        return InputContext(
-            text=input_text,
-            timestamp=timestamp,
-            semantic_vector=semantic_vector,
-            intent=intent,
-            entropy=entropy,
-            metadata={
-                "length": len(input_text),
-                "processed_time": datetime.datetime.utcnow().isoformat()
-            }
-        )
+        return normalized_text
 
 # =======================================================
-# Segment 5: 查詢引擎 (Query Engine)
+# Segment 5: 推理管線階段 (Inference Pipeline Stages)
 # =======================================================
+# 使用策略模式，將原始碼中的每一個 _function() 都改造成一個獨立、
+# 可測試、可重用的 PipelineStage 類別。
 
-class QueryEngine:
-    """
-    查詢引擎：負責協調整個推理流程的執行
-    
-    主要功能:
-    - 整合各個處理模塊
-    - 提供統一的 API 接口
-    - 控制推理流程與資源
-    - 處理執行異常
-    """
-    
-    def __init__(self, config: Config):
+class PipelineStage(ABC):
+    """推理管線中一個處理階段的抽象基礎類別。"""
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """返回階段的唯一、可讀的名稱。"""
+        pass
+
+    @abstractmethod
+    def process(self, state: PipelineState) -> PipelineState:
         """
-        初始化查詢引擎
-        
-        參數:
-            config (Config): 系統配置
+        執行該階段的處理邏輯。
+        - 接收一個 PipelineState 物件。
+        - 處理後返回更新過的 PipelineState 物件。
         """
-        self.config = config
-        self.logic_engine = BasicResponseLogic()
-        logger.info("查詢引擎初始化完成")
-    
-    def run_inference_pipeline(self, input_text: str) -> Dict[str, Any]:
-        """
-        執行完整推理流程
-        
-        參數:
-            input_text (str): 輸入文本
-            
-        返回:
-            Dict[str, Any]: 推理結果
-        """
-        start_time = time.time()
-        logger.info(f"啟動推理流程，輸入: '{input_text[:50]}...' (如果較長)")
-        
+        pass
+
+# --- 階段實現 ---
+
+class InputParsingStage(PipelineStage):
+    """階段1：輸入解析與意圖對齊。"""
+    @property
+    def name(self) -> str: return "InputParsing"
+
+    def process(self, state: PipelineState) -> PipelineState:
         try:
-            # 執行核心推理流程
-            result = self.logic_engine.run(input_text, self.config)
+            # 1. 驗證與標準化輸入
+            normalized_text = InputParser.validate_and_normalize(state.raw_input)
             
-            # 記錄執行時間
-            processing_time = time.time() - start_time
-            logger.info(f"推理完成，耗時: {processing_time:.4f}秒")
+            # 2. 文本嵌入
+            h_t = np.random.rand(state.config.semantic_vector_dimension)
+            state.semantic_vector = h_t / (np.linalg.norm(h_t) + state.config.epsilon)
             
-            # 添加處理時間到結果
-            if isinstance(result, dict):
-                result["processing_time"] = processing_time
+            # 3. 意圖對齊
+            W_bert = np.random.rand(state.config.semantic_vector_dimension, state.config.intent_categories)
+            z_c = np.dot(W_bert.T, state.semantic_vector)
+            p_c = np.exp(z_c - np.max(z_c))
+            p_c /= (np.sum(p_c) + state.config.epsilon)
             
-            return result
-        except InputValidationError as e:
-            logger.error(f"輸入驗證失敗: {e}")
-            return {"error": "輸入驗證失敗", "message": str(e), "status": "error"}
-        except ProcessingError as e:
-            logger.error(f"處理過程失敗: {e}")
-            return {"error": "處理過程失敗", "message": str(e), "status": "error"}
+            state.intent_id = int(np.argmax(p_c))
+            state.initial_entropy = -np.sum(p_c * np.log2(p_c + state.config.epsilon))
+            
+            state.stage_entropies[self.name] = state.initial_entropy
+            logger.info(f"Intent aligned: {state.intent_id}, Entropy: {state.initial_entropy:.4f}")
+            return state
         except Exception as e:
-            logger.error(f"推理過程中發生未預期錯誤: {e}", exc_info=True)
-            return {"error": "系統錯誤", "message": str(e), "status": "error"}
-    
-    def quick_query(self, input_text: str) -> str:
-        """
-        快速查詢模式 - 使用預設配置執行簡化流程
-        
-        參數:
-            input_text (str): 輸入文本
-            
-        返回:
-            str: 簡化的結果描述
-        """
+            raise ProcessingError(f"Error in {self.name} stage.") from e
+
+
+class QuantumEvolutionStage(PipelineStage):
+    """階段2：量子態演化模擬。"""
+    @property
+    def name(self) -> str: return "QuantumEvolution"
+
+    def process(self, state: PipelineState) -> PipelineState:
+        if not state.config.enable_quantum_simulation:
+            logger.warning("Quantum simulation is disabled, skipping stage.")
+            return state
         try:
-            result = self.run_inference_pipeline(input_text)
-            if "error" in result:
-                return f"查詢失敗: {result['message']}"
+            dim = state.config.state_vector_dimension
+            # 初始狀態可以基於語義向量生成，此處簡化
+            initial_q_state = np.random.rand(dim)
             
-            if "final_result" in result:
-                return f"查詢結果: {result['final_result']:.4f}, 一致性: {result['consistency']}"
+            # QFT
+            qft_state = np.fft.fft(initial_q_state) / np.sqrt(dim)
             
-            return f"查詢完成，但結果格式不完整"
+            # 演化
+            theta = np.random.rand() * np.pi
+            noise = np.sin(theta) * 0.01 * np.random.randn(dim)
+            evolved_state = qft_state + noise
+            
+            # 計算熵
+            prob = np.abs(evolved_state)**2
+            prob /= (np.sum(prob) + state.config.epsilon)
+            entropy = -np.sum(prob * np.log2(prob + state.config.epsilon))
+
+            state.stage_vectors[self.name] = evolved_state
+            state.stage_entropies[self.name] = entropy
+            logger.info(f"Quantum state evolved, Entropy: {entropy:.4f}")
+            return state
         except Exception as e:
-            logger.error(f"快速查詢失敗: {e}")
-            return f"查詢異常: {str(e)}"
-    
-    def batch_process(self, input_list: List[str]) -> List[Dict[str, Any]]:
-        """
-        批次處理多個輸入
-        
-        參數:
-            input_list (List[str]): 輸入文本列表
-            
-        返回:
-            List[Dict[str, Any]]: 結果列表
-        """
-        logger.info(f"開始批次處理 {len(input_list)} 個查詢")
-        results = []
-        
-        for idx, input_text in enumerate(input_list):
-            logger.info(f"處理第 {idx+1}/{len(input_list)} 個查詢")
-            result = self.run_inference_pipeline(input_text)
-            results.append(result)
-        
-        logger.info(f"批次處理完成，共 {len(results)} 個結果")
-        return results
+            raise ProcessingError(f"Error in {self.name} stage.") from e
 
-# =======================================================
-# Segment 6: 報告生成器 (Report Generator)
-# =======================================================
+class AdaptiveLearningStage(PipelineStage):
+    """階段3：自適應學習與歷史融合。"""
+    @property
+    def name(self) -> str: return "AdaptiveLearning"
+    
+    def __init__(self, memory_bank: List[np.ndarray]):
+        self._memory_bank = memory_bank
 
-class ReportGenerator:
-    """
-    報告生成器：根據分析結果產生各種格式的報告
-    
-    主要功能:
-    - 生成不同格式的報告 (JSON, HTML, Markdown)
-    - 數據可視化
-    - 結果摘要與統計
-    - 報告存檔與輸出
-    """
-    
-    def __init__(self, result: Dict[str, Any], config: Optional[Config] = None):
-        """
-        初始化報告生成器
-        
-        參數:
-            result (Dict[str, Any]): 推理結果
-            config (Config, optional): 系統配置
-        """
-        self.result = result
-        self.config = config or Config()
-        logger.info("報告生成器初始化完成")
-    
-    def generate_report(self, format: str = "json") -> Any:
-        """
-        生成指定格式的報告
-        
-        參數:
-            format (str): 報告格式，支持 "json", "text", "html", "md"
-            
-        返回:
-            Any: 生成的報告內容
-        """
-        logger.info(f"生成 {format} 格式報告")
-        
-        if "error" in self.result:
-            logger.warning("結果包含錯誤，生成錯誤報告")
-            return self._generate_error_report(format)
-        
+    def process(self, state: PipelineState) -> PipelineState:
         try:
-            if format.lower() == "json":
-                return self._to_json()
-            elif format.lower() == "text":
-                return self._to_text()
-            elif format.lower() == "html":
-                return self._to_html()
-            elif format.lower() == "md" or format.lower() == "markdown":
-                return self._to_markdown()
+            dim = state.config.state_vector_dimension
+            # 使用一個基礎狀態進行學習，例如前一階段的輸出或新的隨機狀態
+            base_state = state.stage_vectors.get(QuantumEvolutionStage().name, np.random.rand(dim))
+            
+            # 從記憶庫中提取平均狀態
+            memory_avg = np.mean(self._memory_bank, axis=0) if self._memory_bank else np.zeros(dim)
+            
+            # 權衡當前狀態與記憶狀態 (簡化邏輯)
+            memory_weight = min(0.5, len(self._memory_bank) * 0.05)
+            adaptive_state = (1.0 - memory_weight) * base_state + memory_weight * memory_avg
+            
+            prob = np.abs(adaptive_state)**2
+            prob /= (np.sum(prob) + state.config.epsilon)
+            entropy = -np.sum(prob * np.log2(prob + state.config.epsilon))
+
+            state.stage_vectors[self.name] = adaptive_state
+            state.stage_entropies[self.name] = entropy
+            logger.info(f"Adaptive learning complete, Entropy: {entropy:.4f}")
+            return state
+        except Exception as e:
+            raise ProcessingError(f"Error in {self.name} stage.") from e
+
+
+class CausalInferenceStage(PipelineStage):
+    """階段4：因果推理與貝氏更新。"""
+    @property
+    def name(self) -> str: return "CausalInference"
+
+    def process(self, state: PipelineState) -> PipelineState:
+        try:
+            dim = state.config.state_vector_dimension
+            # 基於前一階段的狀態進行推理
+            prev_state = state.stage_vectors.get(AdaptiveLearningStage(None).name, np.random.rand(dim))
+            
+            prior = np.ones(dim) / dim
+            likelihood = np.random.rand(dim) * 0.1 + 0.9 # 模擬似然
+            posterior = (likelihood * prior) / (np.sum(likelihood * prior) + state.config.epsilon)
+            
+            causal_state = prev_state * posterior
+            
+            prob = np.abs(causal_state)**2
+            prob /= (np.sum(prob) + state.config.epsilon)
+            entropy = -np.sum(prob * np.log2(prob + state.config.epsilon))
+
+            state.stage_vectors[self.name] = causal_state
+            state.stage_entropies[self.name] = entropy
+            logger.info(f"Causal inference complete, Entropy: {entropy:.4f}")
+            return state
+        except Exception as e:
+            raise ProcessingError(f"Error in {self.name} stage.") from e
+
+# ... 可以繼續將 _recursive_correction 等也實現為獨立的 Stage ...
+
+class GlobalIntegrationStage(PipelineStage):
+    """最終階段：全局整合與建議生成。"""
+    @property
+    def name(self) -> str: return "GlobalIntegration"
+
+    def process(self, state: PipelineState) -> PipelineState:
+        try:
+            # 1. 整合分數
+            if not state.stage_entropies:
+                state.final_score = 0.5
             else:
-                logger.warning(f"不支持的報告格式: {format}，使用默認的 JSON 格式")
-                return self._to_json()
-        except Exception as e:
-            logger.error(f"生成報告時發生錯誤: {e}")
-            return f"報告生成失敗: {str(e)}"
-    
-    def _generate_error_report(self, format: str) -> Any:
-        """生成錯誤報告"""
-        error_msg = self.result.get("message", "未知錯誤")
-        error_type = self.result.get("error", "錯誤")
-        
-        if format.lower() == "json":
-            return json.dumps(self.result, indent=4, ensure_ascii=False)
-        else:
-            return f"錯誤報告\n{'='*60}\n類型: {error_type}\n消息: {error_msg}\n{'='*60}"
-    
-    def _to_json(self) -> str:
-        """轉換為 JSON 格式"""
-        return json.dumps(self.result, indent=4, ensure_ascii=False)
-    
-    def _to_text(self) -> str:
-        """轉換為純文本格式"""
-        lines = [
-            "分析報告",
-            "="*60,
-            f"輸入文本: {self.result.get('context', {}).get('input', '未提供')}",
-            f"時間戳: {self.result.get('context', {}).get('timestamp', '未提供')}",
-            f"意圖: {self.result.get('intent', '未知')}",
-            f"熵值: {self.result.get('H_intent', 0):.4f}",
-            "-"*60,
-            "維度分析:",
-        ]
-        
-        # 添加維度信息
-        dimensions = self.result.get("context", {}).get("dimensions", {})
-        for dim, data in dimensions.items():
-            lines.append(f"  - {dim}: 熵值={data.get('entropy', 0):.4f}, 權重={data.get('weight', 0):.4f}")
-        
-        lines.extend([
-            "-"*60,
-            f"最終結果: {self.result.get('final_result', 0):.4f}",
-            f"一致性: {self.result.get('consistency', '未知')}",
-            "-"*60,
-            "建議:",
-        ])
-        
-        # 添加建議
-        suggestions = self.result.get("suggestions", {})
-        for sug_type, sug_data in suggestions.items():
-            if isinstance(sug_data, list):
-                lines.append(f"  {sug_type}:")
-                for item in sug_data:
-                    if isinstance(item, dict):
-                        for k, v in item.items():
-                            lines.append(f"    - {k}: {v}")
-                    else:
-                        lines.append(f"    - {item}")
+                avg_entropy = np.mean(list(state.stage_entropies.values()))
+                # 簡單地將分數與平均熵值成反比
+                max_entropy = np.log2(state.config.state_vector_dimension + state.config.epsilon)
+                normalized_entropy = avg_entropy / (max_entropy + state.config.epsilon)
+                state.final_score = 1.0 - normalized_entropy
+                state.final_score = max(0.0, min(1.0, state.final_score))
+            
+            # 2. 生成建議
+            suggestions = {}
+            if state.final_score > 0.7:
+                suggestions["primary"] = "高度確定，建議採取果斷行動。"
+            elif state.final_score > 0.4:
+                suggestions["primary"] = "趨勢穩定，建議按計畫執行。"
             else:
-                lines.append(f"  {sug_type}: {sug_data}")
-        
-        lines.append("="*60)
-        
-        return "\n".join(lines)
-    
-    def _to_html(self) -> str:
-        """轉換為 HTML 格式"""
-        # 這裡提供一個簡單的 HTML 模板
-        html = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>分析報告</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                .header {{ background-color: #f0f0f0; padding: 10px; border-radius: 5px; }}
-                .section {{ margin: 15px 0; }}
-                .footer {{ margin-top: 30px; font-size: 0.8em; color: #666; }}
-                table {{ border-collapse: collapse; width: 100%; }}
-                th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-                th {{ background-color: #f2f2f2; }}
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>語義分析報告</h1>
-                <p>生成時間: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-            </div>
-            
-            <div class="section">
-                <h2>基本信息</h2>
-                <p><strong>輸入文本:</strong> {self.result.get('context', {}).get('input', '未提供')}</p>
-                <p><strong>意圖:</strong> {self.result.get('intent', '未知')}</p>
-                <p><strong>熵值:</strong> {self.result.get('H_intent', 0):.4f}</p>
-            </div>
-            
-            <div class="section">
-                <h2>最終結果</h2>
-                <p><strong>結果值:</strong> {self.result.get('final_result', 0):.4f}</p>
-                <p><strong>一致性:</strong> {self.result.get('consistency', '未知')}</p>
-            </div>
-            
-            <div class="footer">
-                <p>報告由 BasicResponseLogic 自動生成</p>
-            </div>
-        </body>
-        </html>
-        """
-        return html
-    
-    def _to_markdown(self) -> str:
-        """轉換為 Markdown 格式"""
-        md = [
-            "# 語義分析報告",
-            "",
-            f"生成時間: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            "",
-            "## 基本信息",
-            "",
-            f"- **輸入文本:** {self.result.get('context', {}).get('input', '未提供')}",
-            f"- **意圖:** {self.result.get('intent', '未知')}",
-            f"- **熵值:** {self.result.get('H_intent', 0):.4f}",
-            "",
-            "## 維度分析",
-            ""
-        ]
-        
-        # 添加維度信息
-        dimensions = self.result.get("context", {}).get("dimensions", {})
-        for dim, data in dimensions.items():
-            md.append(f"- **{dim}:** 熵值={data.get('entropy', 0):.4f}, 權重={data.get('weight', 0):.4f}")
-        
-        md.extend([
-            "",
-            "## 最終結果",
-            "",
-            f"- **結果值:** {self.result.get('final_result', 0):.4f}",
-            f"- **一致性:** {self.result.get('consistency', '未知')}",
-            "",
-            "## 建議",
-            ""
-        ])
-        
-        # 添加建議
-        suggestions = self.result.get("suggestions", {})
-        for sug_type, sug_data in suggestions.items():
-            md.append(f"### {sug_type}")
-            md.append("")
-            if isinstance(sug_data, list):
-                for item in sug_data:
-                    if isinstance(item, dict):
-                        for k, v in item.items():
-                            md.append(f"- **{k}:** {v}")
-                    else:
-                        md.append(f"- {item}")
-            else:
-                md.append(f"- {sug_data}")
-            md.append("")
-        
-        return "\n".join(md)
-    
-    def save_report(self, filename: str, format: str = "json") -> bool:
-        """
-        保存報告到文件
-        
-        參數:
-            filename (str): 檔案名稱
-            format (str, optional): 報告格式
-            
-        返回:
-            bool: 成功為 True，失敗為 False
-        """
-        try:
-            # 生成報告內容
-            content = self.generate_report(format)
-            
-            # 確定檔案路徑
-            if not os.path.isabs(filename):
-                # 如果不是絕對路徑，使用配置的輸出路徑
-                filename = os.path.join(self.config.output_path, filename)
-            
-            # 確保檔案有正確的擴展名
-            if not filename.endswith(f".{format.lower()}"):
-                filename = f"{filename}.{format.lower()}"
-            
-            # 寫入檔案
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write(content)
-            
-            logger.info(f"報告已保存至 {filename}")
-            return True
-        except Exception as e:
-            logger.error(f"保存報告時發生錯誤: {e}")
-            return False
-
-# =======================================================
-# Segment 7: 核心功能實現 – 主類別 (BasicResponseLogic)
-# =======================================================
-
-class BasicResponseLogic:
-    """
-    BasicResponseLogic 主類別，實現完整的邏輯推理流程
-    
-    主要功能流程:
-      1. 輸入解析與意圖對齊
-      2. 初始化上下文
-      3. 量子態演化
-      4. 自適應學習與歷史記憶
-      5. 因果推理
-      6. 遞歸修正
-      7. 全局分析與最終整合
-      8. 生成建議與監控指標
-    """
-
-    def __init__(self, memory_capacity: int = 10):
-        """
-        初始化 BasicResponseLogic
-        
-        參數:
-            memory_capacity (int, optional): 記憶容量，默認為 10
-        """
-        self.memory_states = []  # 歷史記憶列表
-        self.memory_capacity = memory_capacity
-        self.iteration_counter = 0
-        logger.info(f"初始化 BasicResponseLogic，記憶容量={memory_capacity}")
-    
-    def _parse_and_embed(self, input_text: str) -> Tuple[np.ndarray, int, float]:
-        """
-        解析輸入並生成語義向量與意圖
-        
-        參數:
-            input_text (str): 輸入文本
-            
-        返回:
-            Tuple[np.ndarray, int, float]: (語義向量, 意圖索引, 熵值)
-        """
-        logger.info("執行輸入解析與向量化")
-        
-        try:
-            # 解析輸入文本
-            h_t = DataParser.parse_input(input_text)
-            
-            # 意圖對齊
-            intent, H_p_c = DataParser.align_intent(h_t)
-            
-            return h_t, intent, H_p_c
-        except Exception as e:
-            logger.error(f"解析與嵌入過程失敗: {e}")
-            raise ProcessingError(f"解析失敗: {str(e)}")
-    
-    def _simulate_quantum_attention(self, state_0: np.ndarray) -> Tuple[np.ndarray, float]:
-        """
-        模擬量子態演化與注意力機制
-        
-        參數:
-            state_0 (np.ndarray): 初始狀態向量
-            
-        返回:
-            Tuple[np.ndarray, float]: (演化後狀態, 熵值)
-        """
-        logger.info("執行量子態演化與注意力模擬")
-        
-        try:
-            # 標準化輸入狀態
-            if np.sum(np.abs(state_0)) > EPS:
-                state_0 = state_0 / np.sum(np.abs(state_0))
-            
-            # QFT: 使用 FFT 模擬量子傅里葉變換
-            qft_state = np.fft.fft(state_0) / math.sqrt(N_STATE)
-            
-            # 模擬量子相位旋轉
-            theta = np.random.rand() * math.pi
-            f_theta = math.sin(theta) * 0.5
-            
-            # 量子噪聲模擬
-            delta = f_theta * np.random.randn(N_STATE) * 0.01
-            
-            # 應用演化
-            evolved_state = qft_state + delta
-            
-            # 標準化並計算熵
-            evolved_prob = np.abs(evolved_state) / (np.sum(np.abs(evolved_state)) + EPS)
-            H_evolved = -np.sum(evolved_prob * np.log2(evolved_prob + EPS))
-            
-            logger.debug(f"量子態演化完成，熵值={H_evolved:.4f}")
-            return evolved_state, H_evolved
-        except Exception as e:
-            logger.error(f"量子態演化失敗: {e}")
-            # 返回原始狀態和高熵值表示高不確定性
-            return state_0, 1.0
-    
-    def _adaptive_learning(self, state_0: np.ndarray) -> Tuple[np.ndarray, float]:
-        """
-        自適應學習與歷史融合
-        
-        參數:
-            state_0 (np.ndarray): 初始狀態向量
-            
-        返回:
-            Tuple[np.ndarray, float]: (適應性狀態, 熵值)
-        """
-        logger.info("執行自適應學習與歷史記憶融合")
-        
-        try:
-            # 計算初始熵值
-            state_prob = np.abs(state_0) / (np.sum(np.abs(state_0)) + EPS)
-            H_state = -np.sum(state_prob * np.log2(state_prob + EPS))
-            
-            # 計算梯度 (近似)
-            gradients = np.zeros_like(state_0)
-            for i in range(1, len(state_0)-1):
-                gradients[i] = (state_0[i+1] - state_0[i-1]) / 2
-            
-            # 梯度範數
-            grad_norm = np.linalg.norm(gradients)
-            
-            # 生成模擬相關性矩陣
-            R = np.eye(N_STATE) + 0.1 * np.random.rand(N_STATE, N_STATE)
-            
-            # 計算複雜度指標
-            complexity = 0.4 * H_state + 0.3 * grad_norm + 0.3 * np.mean(np.abs(R))
-            
-            # 從記憶中提取平均狀態
-            memory_avg = np.mean(self.memory_states, axis=0) if self.memory_states else np.zeros(N_STATE)
-            
-            # 權衡當前狀態與記憶狀態，複雜度越高權重越大
-            memory_weight = min(0.5, complexity * 0.3)
-            current_weight = 1.0 - memory_weight
-            
-            # 融合狀態
-            new_state = current_weight * state_0 + memory_weight * memory_avg
-            
-            # 標準化並計算熵
-            new_prob = np.abs(new_state) / (np.sum(np.abs(new_state)) + EPS)
-            H_adaptive = -np.sum(new_prob * np.log2(new_prob + EPS))
-            
-            logger.debug(f"自適應學習完成，熵值={H_adaptive:.4f}，複雜度={complexity:.4f}")
-            return new_state, H_adaptive
-        except Exception as e:
-            logger.error(f"自適應學習失敗: {e}")
-            return state_0, H_state if 'H_state' in locals() else 1.0
-    
-    def _causal_inference(self, state: np.ndarray) -> Tuple[np.ndarray, float]:
-        """
-        因果推理與貝氏更新
-        
-        參數:
-            state (np.ndarray): 狀態向量
-            
-        返回:
-            Tuple[np.ndarray, float]: (因果推理後狀態, 熵值)
-        """
-        logger.info("執行因果推理與貝氏更新")
-        
-        try:
-            # 先驗分布 (均勻)
-            prior = np.ones(N_STATE) / N_STATE
-            
-            # 似然函數 (模擬)
-            likelihood = 0.1 * np.random.rand(N_STATE) + 0.9
-            
-            # 貝氏更新
-            posterior = (likelihood * prior) / (np.sum(likelihood * prior) + EPS)
-            
-            # 應用到狀態
-            causal_state = state * posterior
-            
-            # 標準化並計算熵
-            causal_prob = np.abs(causal_state) / (np.sum(np.abs(causal_state)) + EPS)
-            H_causal = -np.sum(causal_prob * np.log2(causal_prob + EPS))
-            
-            logger.debug(f"因果推理完成，熵值={H_causal:.4f}")
-            return causal_state, H_causal
-        except Exception as e:
-            logger.error(f"因果推理失敗: {e}")
-            return state, 1.0
-    
-    def _recursive_correction(self, state: np.ndarray, target_state: np.ndarray) -> Tuple[np.ndarray, float]:
-        """
-        遞歸修正與目標對齊
-        
-        參數:
-            state (np.ndarray): 當前狀態向量
-            target_state (np.ndarray): 目標狀態向量
-            
-        返回:
-            Tuple[np.ndarray, float]: (修正後狀態, 熵值)
-        """
-        logger.info("執行遞歸修正與目標對齊")
-        
-        try:
-            # 生成相位角
-            theta_corr = np.random.rand() * math.pi
-            f_theta_corr = math.sin(theta_corr) * 0.5
-            
-            # 計算目標 (以目標狀態的平均作為參考點)
-            target = np.mean(np.abs(target_state))
-            
-            # 計算誤差
-            error = target - np.mean(np.abs(state))
-            
-            # 誤差修正幅度
-            correction_amplitude = 0.3 * error + f_theta_corr * 0.01
-            
-            # 應用修正
-            correction_vector = correction_amplitude * np.ones_like(state)
-            corrected_state = state + correction_vector
-            
-            # 標準化並計算熵
-            corrected_prob = np.abs(corrected_state) / (np.sum(np.abs(corrected_state)) + EPS)
-            H_corrected = -np.sum(corrected_prob * np.log2(corrected_prob + EPS))
-            
-            logger.debug(f"遞歸修正完成，熵值={H_corrected:.4f}，誤差={error:.4f}")
-            return corrected_state, H_corrected
-        except Exception as e:
-            logger.error(f"遞歸修正失敗: {e}")
-            return state, 1.0
-    
-    def _global_integration(self, states: Dict[str, np.ndarray], entropies: Dict[str, float]) -> float:
-        """
-        全局整合與決策生成
-        
-        參數:
-            states (Dict[str, np.ndarray]): 狀態字典
-            entropies (Dict[str, float]): 熵值字典
-            
-        返回:
-            float: 最終整合結果
-        """
-        logger.info("執行全局整合與決策生成")
-        
-        try:
-            # 提取關鍵狀態
-            evolved = states.get("evolved", np.zeros(N_STATE))
-            adaptive = states.get("adaptive", np.zeros(N_STATE))
-            causal = states.get("causal", np.zeros(N_STATE))
-            corrected = states.get("corrected", np.zeros(N_STATE))
-            
-            # 經典平均
-            classical_result = np.mean([
-                np.mean(np.abs(evolved)), 
-                np.mean(np.abs(adaptive)), 
-                np.mean(np.abs(causal)), 
-                np.mean(np.abs(corrected))
-            ])
-            
-            # 量子權重計算 (模擬量子疊加效應)
-            quantum_weights = np.array([
-                np.sum(np.abs(evolved) ** 2),
-                np.sum(np.abs(adaptive) ** 2),
-                np.sum(np.abs(causal) ** 2),
-                np.sum(np.abs(corrected) ** 2)
-            ])
-            quantum_weights = quantum_weights / (np.sum(quantum_weights) + EPS)
-            
-            # 量子加權和
-            quantum_result = np.sum([
-                quantum_weights[0] * np.mean(np.abs(evolved)),
-                quantum_weights[1] * np.mean(np.abs(adaptive)),
-                quantum_weights[2] * np.mean(np.abs(causal)),
-                quantum_weights[3] * np.mean(np.abs(corrected))
-            ])
-            
-            # 融合經典與量子結果
-            fused = 0.5 * classical_result + 0.5 * quantum_result
-            
-            # 最終的量子相位調整
-            theta_final = np.random.rand() * math.pi
-            final_result = fused + 0.1 * math.sin(theta_final)
-            
-            # 檢查結果是否在合理範圍
-            final_result = max(0.0, min(1.0, final_result))
-            
-            logger.debug(f"全局整合完成，最終結果={final_result:.4f}")
-            return final_result
-        except Exception as e:
-            logger.error(f"全局整合失敗: {e}")
-            return 0.5  # 返回中性結果
-    
-    def _generate_suggestions(self, context: Dict[str, Any], final_result: float, entropies: Dict[str, float]) -> Dict[str, Any]:
-        """
-        根據結果生成建議
-        
-        參數:
-            context (Dict[str, Any]): 上下文信息
-            final_result (float): 最終結果值
-            entropies (Dict[str, float]): 熵值字典
-            
-        返回:
-            Dict[str, Any]: 建議字典
-        """
-        logger.info("生成建議與行動計劃")
-        
-        suggestions = {"primary": [], "alternative": [], "future": {}}
-        
-        try:
-            # 檢查各維度的熵值，低熵代表高確定性
-            for dim, data in context["dimensions"].items():
-                dim_state = data["state"]
-                p_dim = np.abs(dim_state) / (np.sum(np.abs(dim_state)) + EPS)
-                H_dim = -np.sum(p_dim * np.log2(p_dim + EPS))
-                data["entropy"] = H_dim  # 添加到上下文中
-                
-                # 基於熵值分類建議
-                if H_dim < 1.0:  # 高確定性
-                    suggestions["primary"].append({dim: "強烈趨勢，建議積極行動"})
-                elif H_dim < 1.5:  # 中等確定性
-                    suggestions["primary"].append({dim: "明確趨勢，可以計劃行動"})
-                elif H_dim < 2.0:  # 中等不確定性
-                    suggestions["alternative"].append({dim: "趨勢不明確，建議謹慎觀察"})
-                else:  # 高不確定性
-                    suggestions["alternative"].append({dim: "高度不確定，建議暫緩決策"})
-            
-            # 未來趨勢預測
-            if final_result > 0.7:
-                suggestions["future"] = "強勁擴展勢頭，可積極投入資源"
-            elif final_result > 0.5:
-                suggestions["future"] = "穩健增長，持續優化現有策略"
-            elif final_result > 0.3:
-                suggestions["future"] = "趨勢平緩，維持現狀並尋找改進點"
-            else:
-                suggestions["future"] = "下行風險，建議保守策略與風險管理"
-            
-            # 檢查熵值一致性
-            avg_entropy = np.mean(list(entropies.values()))
-            entropy_std = np.std(list(entropies.values()))
+                suggestions["alternative"] = "不確定性較高，建議謹慎評估或收集更多資訊。"
             
             # 添加信心指數
+            entropy_std = np.std(list(state.stage_entropies.values())) if len(state.stage_entropies) > 1 else 0.0
             suggestions["confidence"] = {
-                "level": 1.0 - min(1.0, avg_entropy / 3.0),  # 熵值越低，信心越高
-                "consistency": 1.0 - min(1.0, entropy_std),  # 熵值標準差越低，一致性越高
-                "avg_entropy": avg_entropy
+                "level": state.final_score,
+                "consistency": 1.0 - min(1.0, entropy_std),
             }
+            state.suggestions = suggestions
             
-            logger.debug(f"建議生成完成，平均熵值={avg_entropy:.4f}，信心指數={suggestions['confidence']['level']:.4f}")
-            return suggestions
+            logger.info(f"Global integration complete. Final Score: {state.final_score:.4f}")
+            return state
         except Exception as e:
-            logger.error(f"生成建議時發生錯誤: {e}")
-            return {"primary": ["無法生成有效建議"], "error": str(e)}
-    
-    def _update_memory(self, state: np.ndarray) -> None:
+            raise ProcessingError(f"Error in {self.name} stage.") from e
+
+
+# =======================================================
+# Segment 6: 邏輯管線執行器 (Logic Pipeline Runner)
+# =======================================================
+# 這個類別取代了原始的 QueryEngine 和 BasicResponseLogic 的大部分職責。
+
+class LogicPipeline:
+    """
+    協調並執行一系列推理階段的管線。
+    - 這是 AdvancedLogicCore 的主入口。
+    - 它持有一個記憶庫，並將其注入到需要它的階段中。
+    """
+    def __init__(self, config: LogicCoreConfig, stages: List[PipelineStage]):
+        self.config = config
+        self.stages = stages
+        self._memory_bank: List[np.ndarray] = []
+        
+        # 依賴注入：為需要記憶庫的階段注入記憶庫
+        for stage in self.stages:
+            if isinstance(stage, AdaptiveLearningStage):
+                stage._memory_bank = self._memory_bank
+                
+        logger.info(f"LogicPipeline initialized with {len(stages)} stages.")
+
+    def run(self, raw_input: str) -> FinalResult:
         """
-        更新系統記憶
+        為單個輸入執行完整的推理管線。
         
-        參數:
-            state (np.ndarray): 狀態向量
+        Args:
+            raw_input (str): 使用者輸入的文本。
+
+        Returns:
+            FinalResult: 一個包含完整分析的標準化、不可變的輸出物件。
         """
-        self.memory_states.append(state.copy())
+        state = PipelineState(raw_input=raw_input, config=self.config)
         
-        # 保持記憶在容量範圍內
-        if len(self.memory_states) > self.memory_capacity:
-            self.memory_states.pop(0)
+        for stage in self.stages:
+            logger.debug(f"Executing stage: {stage.name}")
+            state = stage.process(state)
+            state.processing_history.append(f"Success: {stage.name}")
         
-        logger.debug(f"更新系統記憶，當前記憶數量: {len(self.memory_states)}")
-    
-    def run(self, input_text: str, config: Config) -> Dict[str, Any]:
-        """
-        執行完整推理流程
+        # 執行完畢後，更新記憶庫
+        self._update_memory(state)
         
-        參數:
-            input_text (str): 輸入文本
-            config (Config): 系統配置
-            
-        返回:
-            Dict[str, Any]: 推理結果字典
-        """
-        self.iteration_counter += 1
-        logger.info(f"開始第 {self.iteration_counter} 次推理流程")
-        
-        result = {}
-        entropies = {}
-        states = {}
-        
-        try:
-            # Step 1: 輸入解析與意圖對齊
-            h_t, intent, H_p_c = self._parse_and_embed(input_text)
-            result["intent"] = intent
-            result["H_intent"] = H_p_c
-            entropies["intent"] = H_p_c
-            
-            # Step 2: 初始化上下文
-            context = {
-                "input": input_text,
-                "timestamp": config.timestamp,
-                "dimensions": {
-                    dim: {"state": np.random.rand(N_STATE), "entropy": 0.0, "weight": 1/3}
-                    for dim in config.load_config()["global_dimensions"]
-                },
-                "intent": intent
+        return self._package_final_result(state)
+
+    def batch_process(self, input_list: List[str]) -> List[FinalResult]:
+        """批次處理多個輸入。"""
+        logger.info(f"Starting batch processing for {len(input_list)} items.")
+        return [self.run(text) for text in input_list]
+
+    def _update_memory(self, state: PipelineState):
+        """將本次運算的關鍵狀態向量存入記憶庫。"""
+        # 選擇一個有代表性的向量存入，例如自適應學習後的結果
+        adaptive_vector = state.stage_vectors.get(AdaptiveLearningStage(None).name)
+        if adaptive_vector is not None:
+            self._memory_bank.append(adaptive_vector.copy())
+            if len(self._memory_bank) > self.config.memory_capacity:
+                self._memory_bank.pop(0)
+
+    def _package_final_result(self, state: PipelineState) -> FinalResult:
+        """將最終的 PipelineState 封裝成標準的 FinalResult。"""
+        return FinalResult(
+            session_id=state.session_id,
+            raw_input=state.raw_input,
+            final_score=state.final_score,
+            intent_id=state.intent_id,
+            suggestions=state.suggestions,
+            processing_time_s=time.perf_counter() - state.start_time,
+            analysis_details={
+                "initial_entropy": state.initial_entropy,
+                "stage_entropies": state.stage_entropies,
+                "processing_history": state.processing_history,
+                "final_memory_size": len(self._memory_bank),
             }
-            result["context"] = context
-            
-            # Step 3: 量子態演化
-            state_0 = np.random.rand(N_STATE)
-            evolved_state, H_evolved = self._simulate_quantum_attention(state_0)
-            result["evolved_state"] = evolved_state.tolist()
-            result["H_evolved"] = H_evolved
-            entropies["evolved"] = H_evolved
-            states["evolved"] = evolved_state
-            
-            # Step 4: 自適應學習與歷史融合
-            adaptive_state, H_adaptive = self._adaptive_learning(state_0)
-            result["adaptive_state"] = adaptive_state.tolist()
-            result["H_adaptive"] = H_adaptive
-            entropies["adaptive"] = H_adaptive
-            states["adaptive"] = adaptive_state
-            
-            # Step 5: 因果推理
-            causal_state, H_causal = self._causal_inference(adaptive_state)
-            result["causal_state"] = causal_state.tolist()
-            result["H_causal"] = H_causal
-            entropies["causal"] = H_causal
-            states["causal"] = causal_state
-            
-            # Step 6: 遞歸修正
-            corrected_state, H_corrected = self._recursive_correction(causal_state, evolved_state)
-            result["corrected_state"] = corrected_state.tolist()
-            result["H_corrected"] = H_corrected
-            entropies["corrected"] = H_corrected
-            states["corrected"] = corrected_state
-            
-            # Step 7: 全局分析與最終整合
-            final_result = self._global_integration(states, entropies)
-            result["final_result"] = final_result
-            
-            # 檢查各熵值的一致性
-            entropy_values = list(entropies.values())
-            consistency = "一致" if (max(entropy_values) - min(entropy_values)) < 0.5 else "差異"
-            result["consistency"] = consistency
-            
-            # Step 8: 生成建議
-            suggestions = self._generate_suggestions(context, final_result, entropies)
-            result["suggestions"] = suggestions
-            
-            # Step 9: 監控指標
-            avg_entropy = np.mean(entropy_values)
-            result["monitor"] = {
-                "avg_entropy": avg_entropy, 
-                "consistency": consistency,
-                "iteration": self.iteration_counter,
-                "memory_size": len(self.memory_states)
-            }
-            
-            # 更新系統記憶
-            self._update_memory(state_0)
-            
-            logger.info(f"推理流程完成，最終結果: {final_result:.4f}，一致性: {consistency}")
-            return result
-        except Exception as e:
-            logger.error(f"推理流程失敗: {e}", exc_info=True)
-            return {
-                "error": "推理流程錯誤",
-                "message": str(e),
-                "status": "error",
-                "partial_result": result if result else None
-            }
+        )
     
-    def reset(self) -> None:
-        """重置系統狀態"""
-        self.memory_states = []
-        self.iteration_counter = 0
-        logger.info("系統狀態已重置")
+    def reset_memory(self):
+        """清除記憶庫。"""
+        self._memory_bank.clear()
+        logger.info("LogicPipeline memory has been reset.")
+
+
+# =======================================================
+# Segment 7: 報告生成器 (Report Generator)
+# =======================================================
+# ReportGenerator 現在操作的是強類型的 FinalResult 物件，更穩定。
+
+class ReportGenerator:
+    """根據標準化的 FinalResult 產生各種格式的報告。"""
+    
+    def __init__(self, result: FinalResult, config: LogicCoreConfig):
+        self.result = result
+        self.config = config
+
+    def generate(self, format: str = "text") -> str:
+        """生成指定格式的報告。"""
+        if format.lower() == "json":
+            return self.result.to_json()
+        if format.lower() == "text":
+            return self._to_text()
+        # ... 可以繼續實現 to_html, to_markdown 等 ...
+        logger.warning(f"Unsupported format '{format}'. Defaulting to text.")
+        return self._to_text()
+
+    def _to_text(self) -> str:
+        """將 FinalResult 轉換為人類可讀的文本報告。"""
+        details = self.result.analysis_details
+        lines = [
+            "分析報告",
+            "=" * 60,
+            f"會話 ID: {self.result.session_id}",
+            f"處理時間: {self.result.processing_time_s:.4f} 秒",
+            f"輸入文本: {self.result.raw_input}",
+            "-" * 60,
+            f"檢測意圖 ID: {self.result.intent_id}",
+            f"初始熵值: {details.get('initial_entropy', 0):.4f}",
+            "各階段熵值:",
+        ]
+        for name, entropy in details.get('stage_entropies', {}).items():
+            lines.append(f"  - {name}: {entropy:.4f}")
+        lines.extend([
+            "-" * 60,
+            f"最終綜合得分: {self.result.final_score:.4f}",
+            "建議:",
+        ])
+        for key, value in self.result.suggestions.items():
+            if isinstance(value, dict):
+                lines.append(f"  - {key.title()}:")
+                for sub_key, sub_value in value.items():
+                    lines.append(f"    - {sub_key.title()}: {sub_value if isinstance(sub_value, (str, int)) else f'{sub_value:.4f}'}")
+            else:
+                lines.append(f"  - {key.title()}: {value}")
+        lines.append("=" * 60)
+        return "\n".join(lines)
 
 # =======================================================
 # Segment 8: 主程式執行區塊 (Example Usage / Main Entry)
 # =======================================================
+def main():
+    """主執行函數，演示如何使用重構後的 AdvancedLogicCore。"""
+    print("--- 🚀 AdvancedLogicCore (Refactored) Demonstration ---")
+    
+    # 1. 建立配置
+    config = LogicCoreConfig(log_level="INFO", debug_mode=True)
+    
+    # 2. 定義推理管線的各個階段
+    #    擴展：若要調整流程、增刪步驟，只需修改此列表。
+    pipeline_stages = [
+        InputParsingStage(),
+        QuantumEvolutionStage(),
+        AdaptiveLearningStage(None), # 記憶庫將由 LogicPipeline 注入
+        CausalInferenceStage(),
+        # RecursiveCorrectionStage(), # 若實現了，可在此處加入
+        GlobalIntegrationStage(),
+    ]
+
+    # 3. 初始化管線執行器 (這就是新的主引擎)
+    pipeline_runner = LogicPipeline(config, stages=pipeline_stages)
+    
+    # 4. 執行單次推理
+    test_input = "分析將量子計算應用於金融市場預測的潛在風險與機遇"
+    print(f"\n{'='*60}\nProcessing Input: {test_input}\n{'='*60}")
+    
+    try:
+        final_result = pipeline_runner.run(test_input)
+        
+        # 5. 使用報告生成器生成並顯示報告
+        report_generator = ReportGenerator(final_result, config)
+        text_report = report_generator.generate("text")
+        print(text_report)
+        
+        # 6. 保存 JSON 報告
+        report_path = Path(config.output_dir) / f"result_{int(time.time())}.json"
+        with report_path.open('w', encoding='utf-8') as f:
+            f.write(final_result.to_json())
+        print(f"詳細 JSON 報告已保存至: {report_path}")
+
+    except LogicCoreError as e:
+        logger.error(f"Pipeline execution failed: {e}", exc_info=True)
 
 if __name__ == "__main__":
-    # 建立配置
-    config = Config(timestamp="2025-03-12T00:00:00", debug_mode=True)
-    
-    # 建立查詢引擎並執行推理流程
-    engine = QueryEngine(config)
-    
-    # 定義測試輸入
-    test_inputs = [
-        "請分析未來市場趨勢並給出建議",
-        "我需要了解最新的技術發展方向",
-        "如何優化現有產品的用戶體驗"
-    ]
-    
-    for input_text in test_inputs:
-        print(f"\n{'='*60}\n處理輸入: {input_text}\n{'='*60}")
-        
-        # 執行推理
-        inference_result = engine.run_inference_pipeline(input_text)
-        
-        # 生成報告
-        report = ReportGenerator(inference_result).generate_report(format="text")
-        
-        # 顯示結果
-        print(report)
-        
-        # 生成並保存 JSON 報告 (如果存在輸出目錄)
-        if os.path.exists(config.output_path):
-            filename = f"result_{int(time.time())}.json"
-            ReportGenerator(inference_result, config).save_report(filename)
-            print(f"報告已保存至 {os.path.join(config.output_path, filename)}")
-        
-        # 暫停一下，避免輸出太快
-        time.sleep(1)
+    main()```
