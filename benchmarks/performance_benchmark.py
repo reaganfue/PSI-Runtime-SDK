@@ -5,458 +5,353 @@
 # Segment 1: 模組說明 (Module Docstring)
 # =======================================================
 """
-PSI Runtime SDK 性能基準測試模組
+PSI Runtime SDK 性能基準測試框架
 
-本模組負責測量 PSI Runtime SDK 各核心組件的性能，包括：
-1. 處理速度測試：測量不同大小輸入的處理時間
-2. 記憶體使用測試：測量處理過程中的記憶體峰值
-3. 準確性測試：測量分析結果的準確性與一致性
-4. 擴展性測試：測量在多核心環境下的性能擴展
+本模組提供一個可擴展、可配置的框架，用於測量 PSI Runtime SDK
+及其他相關組件的性能指標。
 
-版本：1.0.0
-作者：Reagan Fu 開發團隊
-更新日期：2025-03-12
+核心功能：
+- **性能測試**: 測量給定目標在不同負載下的處理時間與記憶體增量。
+- **結果報告**: 將測試結果自動保存為結構化的 JSON 檔案。
+- **視覺化分析**: 自動生成處理時間與記憶體使用的性能趨勢圖。
+- **模型比較**: 在統一的環境下對多個模型或組件進行橫向比較。
+
+設計理念：
+- **抽象化測試目標**: 使用 `BenchmarkTarget` 抽象類別，將任何可測試的
+  單元（模型、函數）標準化，消除程式碼重複。
+- **職責分離 (SoC)**: 將測試執行器 (Runner)、性能測量器 (Measurer)
+  和報告生成器 (Reporter) 拆分為獨立組件。
+- **配置驅動**: 所有測試參數（如輸入大小、重複次數）均由一個
+  `BenchmarkConfig` 資料類別集中管理。
+- **結構化資料模型**: 使用 `@dataclass` 定義測試結果，確保資料的
+  一致性與可追溯性。
+
+版本：2.0.0
+作者：Reagan Fu 開發團隊 (Refactored by AI Assistant)
+更新日期：2025-07-14
 """
 
 # =======================================================
 # Segment 2: 模組匯入與基礎設置 (Imports & Setup)
 # =======================================================
+# --- 標準庫 ---
+import gc
+import json
+import logging
 import os
 import sys
 import time
-import json
-import logging
-import numpy as np
-import matplotlib.pyplot as plt
-from typing import Dict, List, Any, Tuple
+from abc import ABC, abstractmethod
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Tuple
+
+# --- 第三方庫 ---
+import matplotlib.pyplot as plt
+import numpy as np
 import psutil
-import gc
 
-# 添加專案根目錄到系統路徑
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# --- 待測 SDK 模組 ---
+# 假設專案已正確安裝或路徑已配置
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from logic_core.basic_response_logic import BasicResponseLogic, Config as BRLConfig
+# 替換為重構後的 QuantumFusionEngine
+from quantum_engine import QuantumFusionEngine, EngineConfig
+# PsiFieldModel 假設存在
+# from psi_field import PsiFieldModel
 
-# 從 SDK 匯入需要測試的模組
-from psi_field import PsiFieldModel
-from quantum_engine import QuantumAnalyzer
-from logic_core import BasicResponseLogic
-
-# 配置日誌
+# --- 日誌配置 ---
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s] %(message)s",
     handlers=[
-        logging.FileHandler("benchmark.log"),
+        logging.FileHandler("benchmark.log", mode='w', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
 # =======================================================
-# Segment 3: 測試配置定義 (Test Configuration)
+# Segment 3: 基準測試配置 (Benchmark Configuration)
 # =======================================================
-# 測試輸入大小配置
-TEXT_SIZES = [100, 500, 1000, 5000, 10000]  # 字符數
-# 每個測試重複次數
-REPEAT_COUNT = 5
-# 測試結果輸出目錄
-OUTPUT_DIR = "benchmark_results"
-# 生成測試結果圖形
-GENERATE_PLOTS = True
-
-# =======================================================
-# Segment 4: 輔助函數 (Helper Functions)
-# =======================================================
-def generate_test_text(size: int) -> str:
-    """
-    生成指定大小的測試文本
+@dataclass
+class BenchmarkConfig:
+    """集中管理所有基準測試的參數。"""
+    text_sizes: List[int] = field(default_factory=lambda: [100, 500, 1000, 5000, 10000])
+    repeat_count: int = 5
+    output_dir: str = "benchmark_results"
+    generate_plots: bool = True
     
-    Args:
-        size (int): 文本大小（字符數）
-    
-    Returns:
-        str: 生成的測試文本
-    """
-    words = [
-        "人工智能", "語義場", "量子分析", "語境穩定相位", "知識解鎖",
-        "動態演化", "上下文理解", "語義張力", "推理能力", "認知模型"
-    ]
-    text = ""
-    while len(text) < size:
-        text += np.random.choice(words) + " "
-    return text[:size]
-
-def measure_memory_usage() -> float:
-    """
-    測量當前進程的記憶體使用量（MB）
-    
-    Returns:
-        float: 記憶體使用量（MB）
-    """
-    process = psutil.Process(os.getpid())
-    return process.memory_info().rss / 1024 / 1024  # 轉換為 MB
-
-def run_timed_test(func, *args, **kwargs) -> Tuple[float, float, Any]:
-    """
-    運行計時測試並返回執行時間、記憶體使用量和結果
-    
-    Args:
-        func: 要測試的函數
-        *args, **kwargs: 函數參數
-    
-    Returns:
-        Tuple[float, float, Any]: (執行時間, 記憶體使用量, 函數返回結果)
-    """
-    # 清理記憶體
-    gc.collect()
-    # 記錄初始記憶體
-    mem_before = measure_memory_usage()
-    # 記錄開始時間
-    start_time = time.time()
-    # 執行函數
-    result = func(*args, **kwargs)
-    # 計算耗時
-    elapsed_time = time.time() - start_time
-    # 測量記憶體使用量
-    mem_after = measure_memory_usage()
-    # 計算記憶體增量
-    mem_used = mem_after - mem_before
-    
-    return elapsed_time, mem_used, result
-
-def save_benchmark_results(results: Dict[str, Any], name: str):
-    """
-    保存基準測試結果
-    
-    Args:
-        results (Dict[str, Any]): 測試結果數據
-        name (str): 測試名稱
-    """
-    # 創建輸出目錄
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
-    # 檔案名添加時間戳
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"{OUTPUT_DIR}/{name}_benchmark_{timestamp}.json"
-    
-    # 保存測試結果
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
-    
-    logger.info(f"測試結果已保存到: {filename}")
-
-def plot_benchmark_results(results: Dict[str, Any], name: str):
-    """
-    繪製性能測試結果圖表
-    
-    Args:
-        results (Dict[str, Any]): 測試結果數據
-        name (str): 測試名稱
-    """
-    if not GENERATE_PLOTS:
-        return
-    
-    # 創建輸出目錄
-    os.makedirs(f"{OUTPUT_DIR}/plots", exist_ok=True)
-    
-    # 獲取文本大小和時間數據
-    sizes = results["text_sizes"]
-    times = results["avg_times"]
-    memory = results["avg_memory"]
-    
-    # 繪製處理時間圖
-    plt.figure(figsize=(10, 6))
-    plt.plot(sizes, times, marker='o', linestyle='-', linewidth=2)
-    plt.title(f"{name} - 處理時間與輸入大小關係")
-    plt.xlabel("輸入大小 (字符數)")
-    plt.ylabel("處理時間 (秒)")
-    plt.grid(True)
-    plt.savefig(f"{OUTPUT_DIR}/plots/{name}_time_plot.png")
-    
-    # 繪製記憶體使用圖
-    plt.figure(figsize=(10, 6))
-    plt.plot(sizes, memory, marker='s', linestyle='-', linewidth=2)
-    plt.title(f"{name} - 記憶體使用與輸入大小關係")
-    plt.xlabel("輸入大小 (字符數)")
-    plt.ylabel("記憶體使用增量 (MB)")
-    plt.grid(True)
-    plt.savefig(f"{OUTPUT_DIR}/plots/{name}_memory_plot.png")
-    
-    logger.info(f"測試結果圖表已保存到: {OUTPUT_DIR}/plots/")
+    def __post_init__(self):
+        """配置初始化後，建立輸出目錄。"""
+        Path(self.output_dir).mkdir(exist_ok=True)
+        if self.generate_plots:
+            Path(self.output_dir, "plots").mkdir(exist_ok=True)
+        logger.info(f"Benchmark configured. Results will be saved to '{self.output_dir}'.")
 
 # =======================================================
-# Segment 5: 具體測試實現 (Test Implementations)
+# Segment 4: 資料結構模型 (Data Models)
 # =======================================================
-def benchmark_psi_field_model():
+@dataclass
+class PerformanceMetrics:
+    """單次執行的性能指標。"""
+    elapsed_time_s: float
+    memory_increase_mb: float
+
+@dataclass
+class SizeBenchmarkResult:
+    """單一輸入大小的所有重複測試結果。"""
+    size: int
+    avg_time_s: float
+    avg_memory_mb: float
+    all_runs: List[PerformanceMetrics]
+
+@dataclass
+class TargetBenchmarkResult:
+    """單一測試目標的完整基準測試結果。"""
+    target_name: str
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    results_by_size: List[SizeBenchmarkResult] = field(default_factory=list)
+
+@dataclass
+class SuiteBenchmarkResult:
+    """整個測試套件的結果，包含多個目標的比較。"""
+    suite_name: str
+    config: BenchmarkConfig
+    all_target_results: List[TargetBenchmarkResult]
+
+# =======================================================
+# Segment 5: 測試目標抽象化 (Test Target Abstraction)
+# =======================================================
+class BenchmarkTarget(ABC):
     """
-    測試 PsiFieldModel 的性能
+    測試目標的抽象基礎類別 (策略模式)。
+    - 將任何需要測試的物件或函數封裝成一個標準化、可執行的目標。
     """
-    logger.info("開始 PsiFieldModel 性能測試")
-    
-    # 初始化模型
-    model = PsiFieldModel(config={"use_advanced": False})
-    
-    results = {
-        "model": "PsiFieldModel",
-        "timestamp": datetime.now().isoformat(),
-        "text_sizes": TEXT_SIZES,
-        "repeat_count": REPEAT_COUNT,
-        "times": [],
-        "memory": [],
-        "avg_times": [],
-        "avg_memory": [],
-        "test_details": []
-    }
-    
-    # 針對不同大小的輸入進行測試
-    for size in TEXT_SIZES:
-        logger.info(f"測試輸入大小: {size} 字符")
-        test_text = generate_test_text(size)
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """返回測試目標的唯一名稱。"""
+        pass
+
+    @abstractmethod
+    def setup(self) -> Callable[[str], Any]:
+        """
+        準備測試環境並返回一個可呼叫的測試函數。
+        該函數應接受一個字串（測試文本）作為輸入。
+        """
+        pass
+
+# --- 具體測試目標實現 ---
+
+class QuantumFusionEngineTarget(BenchmarkTarget):
+    """測試 QuantumFusionEngine 的目標。"""
+    @property
+    def name(self) -> str:
+        return "QuantumFusionEngine"
+
+    def setup(self) -> Callable[[str], Any]:
+        config = EngineConfig()
+        engine = QuantumFusionEngine(config)
+        return engine.analyze
+
+class BasicResponseLogicTarget(BenchmarkTarget):
+    """測試 BasicResponseLogic 的目標。"""
+    @property
+    def name(self) -> str:
+        return "BasicResponseLogic"
+
+    def setup(self) -> Callable[[str], Any]:
+        engine = BasicResponseLogic()
+        config = BRLConfig(debug_mode=False)
+        # 使用 lambda 將多參數函數轉換為單參數函數
+        return lambda text: engine.run(text, config)
+
+# class PsiFieldModelTarget(BenchmarkTarget):
+#     """測試 PsiFieldModel 的目標 (範例)。"""
+#     @property
+#     def name(self) -> str:
+#         return "PsiFieldModel"
+#
+#     def setup(self) -> Callable[[str], Any]:
+#         model = PsiFieldModel(config={"use_advanced": False})
+#         return model.process
+
+# =======================================================
+# Segment 6: 核心服務組件 (Core Service Components)
+# =======================================================
+class DataGenerator:
+    """負責生成測試資料。"""
+    @staticmethod
+    def generate_test_text(size: int) -> str:
+        words = ["人工智能", "語義場", "量子分析", "語境穩定相位", "知識解鎖", "動態演化"]
+        text = ""
+        # 使用確定性種子，確保每次測試的文本內容相同
+        rng = np.random.default_rng(seed=size)
+        while len(text) < size:
+            text += rng.choice(words) + " "
+        return text[:size]
+
+class PerformanceMeasurer:
+    """負責精確測量單次函數執行的性能。"""
+    @staticmethod
+    def measure(func: Callable, *args, **kwargs) -> Tuple[PerformanceMetrics, Any]:
+        gc.collect()
+        process = psutil.Process(os.getpid())
+        mem_before_mb = process.memory_info().rss / (1024 * 1024)
         
-        size_times = []
-        size_memory = []
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed_time_s = time.perf_counter() - start_time
         
-        # 重複測試多次取平均
-        for i in range(REPEAT_COUNT):
-            elapsed_time, mem_used, result = run_timed_test(model.process, test_text)
-            size_times.append(elapsed_time)
-            size_memory.append(mem_used)
+        mem_after_mb = process.memory_info().rss / (1024 * 1024)
+        memory_increase_mb = max(0, mem_after_mb - mem_before_mb)
+        
+        metrics = PerformanceMetrics(
+            elapsed_time_s=elapsed_time_s,
+            memory_increase_mb=memory_increase_mb
+        )
+        return metrics, result
+
+class ReportGenerator:
+    """負責生成 JSON 報告和視覺化圖表。"""
+    def __init__(self, output_dir: str, generate_plots: bool):
+        self.output_dir = Path(output_dir)
+        self.plots_dir = self.output_dir / "plots"
+        self.generate_plots = generate_plots
+
+    def generate(self, suite_result: SuiteBenchmarkResult):
+        """生成所有報告和圖表。"""
+        self._save_json_report(suite_result)
+        if self.generate_plots:
+            self._plot_comparison_charts(suite_result)
+
+    def _save_json_report(self, suite_result: SuiteBenchmarkResult):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = self.output_dir / f"{suite_result.suite_name}_{timestamp}.json"
+        with filename.open('w', encoding='utf-8') as f:
+            json.dump(asdict(suite_result), f, indent=2, ensure_ascii=False)
+        logger.info(f"Benchmark suite results saved to: {filename}")
+
+    def _plot_comparison_charts(self, suite_result: SuiteBenchmarkResult):
+        text_sizes = suite_result.config.text_sizes
+        
+        fig_time, ax_time = plt.subplots(figsize=(12, 8))
+        fig_mem, ax_mem = plt.subplots(figsize=(12, 8))
+        
+        markers = ['o', 's', '^', 'D', 'v', '<', '>']
+
+        for i, target_result in enumerate(suite_result.all_target_results):
+            marker = markers[i % len(markers)]
+            times = [r.avg_time_s for r in target_result.results_by_size]
+            memory = [r.avg_memory_mb for r in target_result.results_by_size]
             
-            logger.debug(f"  重複 {i+1}/{REPEAT_COUNT}: 時間={elapsed_time:.4f}秒, 記憶體={mem_used:.2f}MB")
-        
-        # 計算平均值
-        avg_time = np.mean(size_times)
-        avg_memory = np.mean(size_memory)
-        
-        # 記錄結果
-        results["times"].append(size_times)
-        results["memory"].append(size_memory)
-        results["avg_times"].append(avg_time)
-        results["avg_memory"].append(avg_memory)
-        results["test_details"].append({
-            "size": size,
-            "times": size_times,
-            "memory": size_memory,
-            "avg_time": avg_time,
-            "avg_memory": avg_memory
-        })
-        
-        logger.info(f"  平均處理時間: {avg_time:.4f}秒, 平均記憶體增量: {avg_memory:.2f}MB")
-    
-    # 保存結果
-    save_benchmark_results(results, "psi_field_model")
-    # 繪製圖表
-    plot_benchmark_results(results, "PsiFieldModel")
-    
-    logger.info("PsiFieldModel 性能測試完成")
-    return results
-
-def benchmark_quantum_analyzer():
-    """
-    測試 QuantumAnalyzer 的性能
-    """
-    logger.info("開始 QuantumAnalyzer 性能測試")
-    
-    # 初始化分析器
-    analyzer = QuantumAnalyzer()
-    
-    results = {
-        "model": "QuantumAnalyzer",
-        "timestamp": datetime.now().isoformat(),
-        "text_sizes": TEXT_SIZES,
-        "repeat_count": REPEAT_COUNT,
-        "times": [],
-        "memory": [],
-        "avg_times": [],
-        "avg_memory": [],
-        "test_details": []
-    }
-    
-    # 針對不同大小的輸入進行測試
-    for size in TEXT_SIZES:
-        logger.info(f"測試輸入大小: {size} 字符")
-        test_text = generate_test_text(size)
-        
-        size_times = []
-        size_memory = []
-        
-        # 重複測試多次取平均
-        for i in range(REPEAT_COUNT):
-            elapsed_time, mem_used, result = run_timed_test(analyzer.comprehensive_analysis, test_text)
-            size_times.append(elapsed_time)
-            size_memory.append(mem_used)
+            ax_time.plot(text_sizes, times, marker=marker, label=target_result.target_name)
+            ax_mem.plot(text_sizes, memory, marker=marker, label=target_result.target_name)
             
-            logger.debug(f"  重複 {i+1}/{REPEAT_COUNT}: 時間={elapsed_time:.4f}秒, 記憶體={mem_used:.2f}MB")
+        self._finalize_plot(ax_time, "Model Processing Time Comparison", "Input Size (characters)", "Avg. Time (s)")
+        self._finalize_plot(ax_mem, "Model Memory Usage Comparison", "Input Size (characters)", "Avg. Memory Increase (MB)")
         
-        # 計算平均值
-        avg_time = np.mean(size_times)
-        avg_memory = np.mean(size_memory)
+        fig_time.savefig(self.plots_dir / "comparison_time.png")
+        fig_mem.savefig(self.plots_dir / "comparison_memory.png")
         
-        # 記錄結果
-        results["times"].append(size_times)
-        results["memory"].append(size_memory)
-        results["avg_times"].append(avg_time)
-        results["avg_memory"].append(avg_memory)
-        results["test_details"].append({
-            "size": size,
-            "times": size_times,
-            "memory": size_memory,
-            "avg_time": avg_time,
-            "avg_memory": avg_memory
-        })
-        
-        logger.info(f"  平均處理時間: {avg_time:.4f}秒, 平均記憶體增量: {avg_memory:.2f}MB")
-    
-    # 保存結果
-    save_benchmark_results(results, "quantum_analyzer")
-    # 繪製圖表
-    plot_benchmark_results(results, "QuantumAnalyzer")
-    
-    logger.info("QuantumAnalyzer 性能測試完成")
-    return results
+        plt.close(fig_time)
+        plt.close(fig_mem)
+        logger.info(f"Comparison plots saved to: {self.plots_dir}")
 
-def benchmark_basic_response_logic():
-    """
-    測試 BasicResponseLogic 的性能
-    """
-    logger.info("開始 BasicResponseLogic 性能測試")
-    
-    # 初始化邏輯引擎
-    from logic_core import Config
-    config = Config(debug_mode=False)
-    engine = BasicResponseLogic()
-    
-    results = {
-        "model": "BasicResponseLogic",
-        "timestamp": datetime.now().isoformat(),
-        "text_sizes": TEXT_SIZES,
-        "repeat_count": REPEAT_COUNT,
-        "times": [],
-        "memory": [],
-        "avg_times": [],
-        "avg_memory": [],
-        "test_details": []
-    }
-    
-    # 針對不同大小的輸入進行測試
-    for size in TEXT_SIZES:
-        logger.info(f"測試輸入大小: {size} 字符")
-        test_text = generate_test_text(size)
-        
-        size_times = []
-        size_memory = []
-        
-        # 重複測試多次取平均
-        for i in range(REPEAT_COUNT):
-            elapsed_time, mem_used, result = run_timed_test(engine.run, test_text, config)
-            size_times.append(elapsed_time)
-            size_memory.append(mem_used)
-            
-            logger.debug(f"  重複 {i+1}/{REPEAT_COUNT}: 時間={elapsed_time:.4f}秒, 記憶體={mem_used:.2f}MB")
-        
-        # 計算平均值
-        avg_time = np.mean(size_times)
-        avg_memory = np.mean(size_memory)
-        
-        # 記錄結果
-        results["times"].append(size_times)
-        results["memory"].append(size_memory)
-        results["avg_times"].append(avg_time)
-        results["avg_memory"].append(avg_memory)
-        results["test_details"].append({
-            "size": size,
-            "times": size_times,
-            "memory": size_memory,
-            "avg_time": avg_time,
-            "avg_memory": avg_memory
-        })
-        
-        logger.info(f"  平均處理時間: {avg_time:.4f}秒, 平均記憶體增量: {avg_memory:.2f}MB")
-    
-    # 保存結果
-    save_benchmark_results(results, "basic_response_logic")
-    # 繪製圖表
-    plot_benchmark_results(results, "BasicResponseLogic")
-    
-    logger.info("BasicResponseLogic 性能測試完成")
-    return results
-
-def compare_all_models():
-    """
-    比較所有模型的性能
-    """
-    logger.info("開始比較所有模型的性能")
-    
-    # 運行各模型的基準測試
-    psi_results = benchmark_psi_field_model()
-    qa_results = benchmark_quantum_analyzer()
-    brl_results = benchmark_basic_response_logic()
-    
-    # 準備比較結果
-    comparison = {
-        "timestamp": datetime.now().isoformat(),
-        "text_sizes": TEXT_SIZES,
-        "models": ["PsiFieldModel", "QuantumAnalyzer", "BasicResponseLogic"],
-        "times": {
-            "PsiFieldModel": psi_results["avg_times"],
-            "QuantumAnalyzer": qa_results["avg_times"],
-            "BasicResponseLogic": brl_results["avg_times"],
-        },
-        "memory": {
-            "PsiFieldModel": psi_results["avg_memory"],
-            "QuantumAnalyzer": qa_results["avg_memory"],
-            "BasicResponseLogic": brl_results["avg_memory"],
-        }
-    }
-    
-    # 保存比較結果
-    save_benchmark_results(comparison, "model_comparison")
-    
-    # 繪製比較圖表
-    if GENERATE_PLOTS:
-        # 創建輸出目錄
-        os.makedirs(f"{OUTPUT_DIR}/plots", exist_ok=True)
-        
-        # 繪製時間比較圖
-        plt.figure(figsize=(12, 8))
-        plt.plot(TEXT_SIZES, psi_results["avg_times"], marker='o', label="PsiFieldModel")
-        plt.plot(TEXT_SIZES, qa_results["avg_times"], marker='s', label="QuantumAnalyzer")
-        plt.plot(TEXT_SIZES, brl_results["avg_times"], marker='^', label="BasicResponseLogic")
-        plt.title("模型處理時間比較")
-        plt.xlabel("輸入大小 (字符數)")
-        plt.ylabel("處理時間 (秒)")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"{OUTPUT_DIR}/plots/model_time_comparison.png")
-        
-        # 繪製記憶體比較圖
-        plt.figure(figsize=(12, 8))
-        plt.plot(TEXT_SIZES, psi_results["avg_memory"], marker='o', label="PsiFieldModel")
-        plt.plot(TEXT_SIZES, qa_results["avg_memory"], marker='s', label="QuantumAnalyzer")
-        plt.plot(TEXT_SIZES, brl_results["avg_memory"], marker='^', label="BasicResponseLogic")
-        plt.title("模型記憶體使用比較")
-        plt.xlabel("輸入大小 (字符數)")
-        plt.ylabel("記憶體使用增量 (MB)")
-        plt.legend()
-        plt.grid(True)
-        plt.savefig(f"{OUTPUT_DIR}/plots/model_memory_comparison.png")
-    
-    logger.info("所有模型性能比較完成")
-    return comparison
+    def _finalize_plot(self, ax, title: str, xlabel: str, ylabel: str):
+        ax.set_title(title, fontsize=16)
+        ax.set_xlabel(xlabel, fontsize=12)
+        ax.set_ylabel(ylabel, fontsize=12)
+        ax.legend()
+        ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
 # =======================================================
-# Segment 6: 主程式入口 (Main Entry)
+# Segment 7: 基準測試執行器 (Benchmark Runner)
 # =======================================================
-if __name__ == "__main__":
-    logger.info("開始 PSI Runtime SDK 性能基準測試")
+class BenchmarkRunner:
+    """
+    協調整個基準測試流程的執行器。
+    """
+    def __init__(self, config: BenchmarkConfig):
+        self.config = config
+        self.reporter = ReportGenerator(config.output_dir, config.generate_plots)
+
+    def run_suite(self, targets: List[BenchmarkTarget], suite_name: str = "ModelComparison"):
+        """
+        對一組測試目標執行完整的基準測試套件。
+        """
+        logger.info(f"--- Starting Benchmark Suite: {suite_name} ---")
+        suite_result = SuiteBenchmarkResult(suite_name=suite_name, config=self.config, all_target_results=[])
+
+        for target in targets:
+            target_result = self._run_for_target(target)
+            suite_result.all_target_results.append(target_result)
+        
+        self.reporter.generate(suite_result)
+        logger.info(f"--- Benchmark Suite: {suite_name} Finished ---")
+
+    def _run_for_target(self, target: BenchmarkTarget) -> TargetBenchmarkResult:
+        logger.info(f"--- Benchmarking Target: {target.name} ---")
+        test_function = target.setup()
+        target_result = TargetBenchmarkResult(target_name=target.name)
+
+        for size in self.config.text_sizes:
+            logger.info(f"Testing with input size: {size} characters")
+            test_text = DataGenerator.generate_test_text(size)
+            
+            runs_metrics: List[PerformanceMetrics] = []
+            for i in range(self.config.repeat_count):
+                metrics, _ = PerformanceMeasurer.measure(test_function, test_text)
+                runs_metrics.append(metrics)
+                logger.debug(f"  Run {i+1}/{self.config.repeat_count}: "
+                             f"Time={metrics.elapsed_time_s:.4f}s, "
+                             f"Memory={metrics.memory_increase_mb:.2f}MB")
+            
+            avg_time = np.mean([m.elapsed_time_s for m in runs_metrics])
+            avg_memory = np.mean([m.memory_increase_mb for m in runs_metrics])
+            
+            size_result = SizeBenchmarkResult(
+                size=size,
+                avg_time_s=avg_time,
+                avg_memory_mb=avg_memory,
+                all_runs=runs_metrics
+            )
+            target_result.results_by_size.append(size_result)
+            logger.info(f"  Average for size {size}: Time={avg_time:.4f}s, Memory={avg_memory:.2f}MB")
+        
+        logger.info(f"--- Finished Benchmarking Target: {target.name} ---")
+        return target_result
+
+# =======================================================
+# Segment 8: 主程式入口 (Main Entry)
+# =======================================================
+def main():
+    """主執行函數。"""
+    logger.info("Initializing PSI Runtime SDK Benchmark Framework.")
     
     try:
-        # 比較所有模型的性能
-        compare_all_models()
+        # 1. 建立測試配置
+        config = BenchmarkConfig()
         
-        logger.info("所有性能測試已完成")
-        logger.info(f"測試結果保存在 {os.path.abspath(OUTPUT_DIR)} 目錄")
-    
+        # 2. 定義所有要測試的目標
+        #    擴展：若要測試新模型，只需在此處新增一個 Target 實例。
+        targets_to_test = [
+            QuantumFusionEngineTarget(),
+            BasicResponseLogicTarget(),
+            # PsiFieldModelTarget(), # 如需測試，取消此行註解
+        ]
+        
+        # 3. 建立並運行基準測試執行器
+        runner = BenchmarkRunner(config)
+        runner.run_suite(targets_to_test)
+        
+        logger.info("All benchmark tests completed successfully.")
+        logger.info(f"Check the '{config.output_dir}' directory for detailed results.")
+
     except Exception as e:
-        logger.error(f"測試過程中發生錯誤: {e}", exc_info=True)
-        sys.exit(1) 
+        logger.critical(f"A critical error occurred during the benchmark process: {e}", exc_info=True)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
