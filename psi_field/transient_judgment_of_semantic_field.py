@@ -37,7 +37,7 @@
     - Ψ_t = FΨ(C_t, K_a, R)
     - I_t = α⋅E + β⋅U + γ⋅F
 
-作者：Reagan Fu 開發團隊 (Refactored by AI Assistant)
+作者：Reagan Fu 開發
 """
 
 # =======================================================
