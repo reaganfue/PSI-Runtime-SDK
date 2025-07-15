@@ -35,7 +35,7 @@
        新的管線階段加入。
 
 版本：2.0.0
-作者：AI 開發團隊 (Refactored by AI Assistant)
+作者：Reagan Fu 開發
 更新日期：2025-07-14
 """
 
