@@ -1,32 +1,137 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=70.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "psi-runtime-sdk"
 version = "0.1.0"
-description = "量子啟發式推理與語義場分析SDK"
+description = "Enterprise Quantum-Inspired Reasoning and Semantic Field Analysis SDK"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
-    {name = "AI開發團隊", email = "info@example.com"}
+    {name = "Reagan Fu", email = "reagan.fue@gmail.com"}
 ]
-keywords = ["quantum", "nlp", "semantic", "AI", "reasoning"]
+keywords = ["quantum", "nlp", "semantic", "AI", "reasoning", "enterprise"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dynamic = ["dependencies"]
 
 [project.optional-dependencies]
-api = ["fastapi>=0.68.0", "uvicorn>=0.15.0"]
-cli = ["click>=8.0.0"]
-dev = ["pytest>=6.0.0", "black>=21.5b2", "isort>=5.9.1"]
+api = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.0.0",
+]
+cli = [
+    "click>=8.0.0", 
+    "rich>=13.0.0",
+    "typer>=0.9.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0", 
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.0.0",
+]
+security = [
+    "bandit>=1.7.0",
+    "safety>=2.3.0",
+]
+monitoring = [
+    "prometheus-client>=0.17.0",
+    "structlog>=23.0.0",
+    "sentry-sdk>=1.32.0",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/reaganfue/PSI-Runtime-SDK"
+"Bug Reports" = "https://github.com/reaganfue/PSI-Runtime-SDK/issues"
+"Source" = "https://github.com/reaganfue/PSI-Runtime-SDK"
+"Documentation" = "https://github.com/reaganfue/PSI-Runtime-SDK/docs"
 
 [tool.setuptools]
 packages = ["psi_runtime_sdk"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+# Black configuration
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+# isort configuration
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+
+# mypy configuration
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# pytest configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["psi_runtime_sdk"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
