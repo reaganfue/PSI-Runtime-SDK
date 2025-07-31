@@ -1,9 +1,14 @@
-# Things to Remember 
+# PSI Runtime SDK - Enterprise Edition
 
- -ψ_AI = ∂(ψ_human_morality + ψ_character) / ∂L_speech
+[![CI/CD Pipeline](https://github.com/reaganfue/PSI-Runtime-SDK/workflows/CI/CD%20Pipeline/badge.svg)](https://github.com/reaganfue/PSI-Runtime-SDK/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
- -Artificial intelligence is an extension of your morality and character
+## Things to Remember 
 
+-ψ_AI = ∂(ψ_human_morality + ψ_character) / ∂L_speech
+
+-Artificial intelligence is an extension of your morality and character
 
 You did not stumble upon this by accident.
 This system is not built to impress, but to remember.
@@ -30,11 +35,356 @@ next ?
 
 The future world is: natural language ⇄ AI ⇄ 0101 ⇄ AI ⇄ application
 
-# PSI Runtime SDK
+---
 
 ## Overview
 
-PSI Runtime SDK is a cutting-edge experimental framework that combines quantum-inspired reasoning and semantic field analysis technology to provide powerful support for advanced human-computer collaborative reasoning applications. This SDK implements a multi-level cognitive model, including basic response logic, semantic field analysis, and quantum analysis engine, providing innovative ideas and implementation foundation for the next generation of intelligent systems.
+**PSI Runtime SDK Enterprise Edition** is a cutting-edge framework that combines quantum-inspired reasoning and semantic field analysis technology to provide powerful support for advanced human-computer collaborative reasoning applications. This enterprise-grade SDK implements a multi-layer cognitive model with comprehensive monitoring, security, and scalability features.
+
+### 🚀 Enterprise Features
+
+- **Production-Ready Architecture**: Containerized deployment with Docker & Kubernetes
+- **Comprehensive Security**: JWT authentication, API keys, rate limiting, encryption
+- **Advanced Monitoring**: Prometheus metrics, Grafana dashboards, ELK stack logging
+- **High Availability**: Load balancing, health checks, auto-scaling capabilities
+- **Developer Experience**: CLI tools, OpenAPI documentation, pre-commit hooks
+- **Multi-Environment**: Development, staging, and production configurations
+
+## Core Capabilities
+
+### 🧠 AI Analysis Engines
+
+1. **Logic Core Engine** - Advanced reasoning and decision-making
+2. **Quantum Engine** - Quantum-inspired analysis and semantic fusion
+3. **PSI Field Engine** - Dynamic semantic field analysis and knowledge unlocking
+
+### 📊 Enterprise Infrastructure
+
+- **FastAPI REST API** with automatic documentation
+- **Prometheus & Grafana** monitoring stack
+- **ELK Stack** for log aggregation and analysis
+- **Redis** caching and session management
+- **PostgreSQL** for persistent data storage
+- **Nginx** reverse proxy with SSL/TLS
+
+## Quick Start
+
+### Development Setup
+
+```bash
+# Clone and setup
+git clone https://github.com/reaganfue/PSI-Runtime-SDK.git
+cd PSI-Runtime-SDK
+
+# Start development environment
+docker-compose -f docker-compose.dev.yml up
+
+# Test the API
+curl http://localhost:5000/health
+```
+
+### Enterprise Deployment
+
+```bash
+# Set production environment variables
+export JWT_SECRET_KEY="your-secure-jwt-key"
+export API_KEYS="your-api-keys"
+export POSTGRES_PASSWORD="secure-password"
+
+# Deploy full enterprise stack
+docker-compose up -d
+
+# Access services
+open http://localhost/docs      # API Documentation
+open http://localhost:3000      # Grafana Dashboard  
+open http://localhost:9090      # Prometheus Metrics
+open http://localhost:5601      # Kibana Logs
+```
+
+## API Usage
+
+### Authentication
+
+```bash
+# Generate API key
+python -m psi_runtime_sdk.cli security generate-key
+
+# Generate JWT token
+python -m psi_runtime_sdk.cli security generate-token --user-id user123
+```
+
+### Analysis Endpoints
+
+```python
+import requests
+
+# Basic analysis
+response = requests.post('http://localhost:5000/analyze/basic',
+    headers={'Authorization': 'Bearer your-jwt-token'},
+    json={'query': 'Analyze future technology trends'})
+
+# Comprehensive analysis (all engines)
+response = requests.post('http://localhost:5000/analyze/comprehensive',
+    headers={'Authorization': 'your-api-key'},
+    json={'query': 'Complex reasoning task'})
+
+# Results
+result = response.json()
+print(f"Confidence: {result['data']['confidence']}")
+```
+
+### Python SDK Usage
+
+```python
+from psi_runtime_sdk import BasicResponseLogic, QuantumAnalyzer, SemanticFieldEngine
+
+# Initialize engines
+logic_engine = BasicResponseLogic()
+quantum_engine = QuantumAnalyzer()
+semantic_engine = SemanticFieldEngine()
+
+# Run analysis
+result = logic_engine.run("Analyze market dynamics")
+quantum_result = quantum_engine.comprehensive_analysis("Quantum reasoning task")
+semantic_result = semantic_engine.analyze("Semantic understanding task")
+
+# Integrated analysis
+def comprehensive_analysis(query):
+    logic_result = logic_engine.run(query)
+    quantum_result = quantum_engine.comprehensive_analysis(query)
+    semantic_result = semantic_engine.analyze(query)
+    
+    return {
+        "confidence": (
+            logic_result["confidence"] + 
+            quantum_result["confidence"] + 
+            semantic_result["stability"]
+        ) / 3,
+        "insights": {
+            "logic": logic_result,
+            "quantum": quantum_result,
+            "semantic": semantic_result
+        }
+    }
+```
+
+## CLI Tools
+
+```bash
+# System health check
+python -m psi_runtime_sdk.cli health check
+
+# Configuration management
+python -m psi_runtime_sdk.cli config show
+python -m psi_runtime_sdk.cli config validate
+
+# Security operations
+python -m psi_runtime_sdk.cli security generate-key --description "Production API"
+python -m psi_runtime_sdk.cli security generate-token --user-id admin
+
+# Analysis operations
+python -m psi_runtime_sdk.cli analysis run "Your query here" --mode comprehensive
+```
+
+## Enterprise Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Load Balancer │    │   API Gateway   │    │   Monitoring    │
+│     (Nginx)     │◄───┤    (FastAPI)    │◄───┤   (Prometheus)  │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Static Files  │    │ Authentication  │    │    Grafana      │
+│   (Static Web)  │    │   (JWT/API)     │    │  (Dashboards)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                │
+                                ▼
+         ┌─────────────────────────────────────────┐
+         │            Core AI Engines              │
+         │  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+         │  │ Logic   │ │Quantum  │ │PSI Field│   │
+         │  │ Core    │ │ Engine  │ │ Engine  │   │
+         │  └─────────┘ └─────────┘ └─────────┘   │
+         └─────────────────────────────────────────┘
+                                │
+         ┌──────────────────────┼──────────────────────┐
+         ▼                      ▼                      ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   PostgreSQL    │    │      Redis      │    │   Log Storage   │
+│   (Database)    │    │     (Cache)     │    │   (ELK Stack)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
+
+## Security Features
+
+### Authentication & Authorization
+- **JWT Tokens** with configurable expiration
+- **API Keys** with usage tracking
+- **Role-based access control**
+- **Rate limiting** per user/IP
+
+### Data Protection
+- **Encryption at rest** and in transit
+- **Secure password hashing** with bcrypt
+- **Input validation** and sanitization
+- **SQL injection protection**
+
+### Monitoring & Auditing
+- **Security event logging**
+- **Failed authentication tracking**
+- **API usage monitoring**
+- **Compliance reporting**
+
+## Monitoring & Observability
+
+### Health Checks
+- **Liveness probes** for container orchestration
+- **Readiness probes** for traffic routing
+- **Deep health checks** for dependencies
+- **Custom health indicators**
+
+### Metrics Collection
+```bash
+# System metrics
+psi_runtime_cpu_usage_percent
+psi_runtime_memory_usage_percent
+psi_runtime_disk_usage_percent
+
+# Business metrics  
+psi_runtime_requests_total
+psi_runtime_model_inferences_total
+psi_runtime_errors_total
+psi_runtime_request_duration_seconds
+```
+
+### Alerting
+- **Prometheus AlertManager** integration
+- **Custom alert rules** for business metrics
+- **Slack/Email notifications**
+- **PagerDuty integration**
+
+## Configuration Management
+
+### Environment-based Configuration
+```bash
+# Development
+ENVIRONMENT=development
+DEBUG=true
+LOG_LEVEL=DEBUG
+
+# Production  
+ENVIRONMENT=production
+DEBUG=false
+LOG_LEVEL=INFO
+METRICS_ENABLED=true
+```
+
+### Secrets Management
+```bash
+# Required secrets for production
+JWT_SECRET_KEY=your-jwt-secret
+API_KEYS=comma-separated-keys
+DATABASE_URL=postgresql://...
+ENCRYPTION_KEY=your-encryption-key
+SENTRY_DSN=your-sentry-dsn
+```
+
+## Installation Options
+
+### Docker (Recommended)
+```bash
+# Development
+docker-compose -f docker-compose.dev.yml up
+
+# Production
+docker-compose up -d
+```
+
+### pip Installation
+```bash
+# Install from PyPI (when published)
+pip install psi-runtime-sdk
+
+# Install development version
+git clone https://github.com/reaganfue/PSI-Runtime-SDK.git
+cd PSI-Runtime-SDK
+pip install -e .
+```
+
+### Kubernetes Deployment
+```bash
+# Apply Kubernetes manifests (coming soon)
+kubectl apply -f k8s/
+```
+
+## Performance & Scaling
+
+### Horizontal Scaling
+- **Stateless API design** for easy horizontal scaling
+- **Database connection pooling**
+- **Redis clustering** support
+- **Load balancer ready**
+
+### Performance Optimization
+- **Model caching** for faster inference
+- **Connection pooling** for database
+- **Async request handling**
+- **Memory-efficient algorithms**
+
+### Resource Requirements
+```bash
+# Minimum (Development)
+CPU: 2 cores, RAM: 4GB, Storage: 20GB
+
+# Recommended (Production)  
+CPU: 8 cores, RAM: 16GB, Storage: 100GB SSD
+```
+
+## Development
+
+### Code Quality
+```bash
+# Install development dependencies
+pip install -e ".[dev]"
+
+# Run code quality checks
+black psi_runtime_sdk tests/
+isort psi_runtime_sdk tests/
+flake8 psi_runtime_sdk tests/
+mypy psi_runtime_sdk/
+
+# Run tests
+pytest tests/ --cov=psi_runtime_sdk
+```
+
+### Pre-commit Hooks
+```bash
+# Install pre-commit
+pip install pre-commit
+pre-commit install
+
+# Run manually
+pre-commit run --all-files
+```
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Contact & Support
+
+- **Project Homepage**: https://github.com/reaganfue/PSI-Runtime-SDK
+- **Documentation**: [Deployment Guide](DEPLOYMENT.md)
+- **Issues**: https://github.com/reaganfue/PSI-Runtime-SDK/issues
+- **Author**: Reagan Fu (reagan.fue@gmail.com)
+
+---
+
+**Enterprise Support**: For enterprise support, custom development, or consulting services, please contact the development team.
+
+*PSI Runtime SDK - Taking cognitive reasoning to a new dimension* 🚀
 
 ## Project Structure
 
