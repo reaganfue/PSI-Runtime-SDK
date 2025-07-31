@@ -1,4 +1,4 @@
-# PSI Runtime SDK - Enterprise Edition
+# PSI Runtime SDK 
 
 [![CI/CD Pipeline](https://github.com/reaganfue/PSI-Runtime-SDK/workflows/CI/CD%20Pipeline/badge.svg)](https://github.com/reaganfue/PSI-Runtime-SDK/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
