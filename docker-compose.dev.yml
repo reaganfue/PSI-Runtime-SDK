@@ -1,0 +1,81 @@
+# Development Docker Compose Configuration for PSI Runtime SDK
+version: '3.8'
+
+services:
+  # Main API Service (Development)
+  psi-runtime-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: psi-runtime-dev
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "8000:8000"  # Metrics port
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URL=sqlite:///app/data/psi_runtime_dev.db
+      - JWT_SECRET_KEY=dev-secret-key
+      - API_KEYS=dev-api-key-123,dev-api-key-456
+      - LOG_LEVEL=DEBUG
+      - METRICS_ENABLED=true
+    volumes:
+      - .:/home/psi/app
+      - ./data:/home/psi/app/data
+      - ./logs:/home/psi/app/logs
+      - ./models:/home/psi/app/models
+    command: ["python", "app.py"]
+    networks:
+      - psi-dev-network
+
+  # Optional: Local database for testing
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: psi-runtime-postgres-dev
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=psi_runtime_dev
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - psi-dev-network
+
+  # Redis for development
+  redis-dev:
+    image: redis:7-alpine
+    container_name: psi-runtime-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - psi-dev-network
+
+  # Prometheus for development monitoring
+  prometheus-dev:
+    image: prom/prometheus:latest
+    container_name: psi-runtime-prometheus-dev
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus-dev.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+    networks:
+      - psi-dev-network
+
+networks:
+  psi-dev-network:
+    driver: bridge
+
+volumes:
+  postgres_dev_data:
+    driver: local
