@@ -1,23 +1,34 @@
 """
-PSI Runtime SDK - Enterprise Quantum-Inspired Reasoning Framework
+PSI Runtime SDK - Enterprise Quantum-Inspired Reasoning Framework - L4 Enhanced
 
-A cutting-edge framework that combines quantum-inspired reasoning and semantic 
-field analysis technology for advanced human-computer collaborative reasoning.
+A cutting-edge framework with L4 (Level 4) meta-cognitive optimization that combines 
+quantum-inspired reasoning and semantic field analysis technology for advanced 
+human-computer collaborative reasoning with meta-cognitive capabilities.
+
+L4 Features:
+- Meta-cognitive reasoning optimization
+- Cross-engine synchronization
+- Adaptive confidence calibration
+- Dynamic semantic field stability
+- Quantum coherence optimization
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.0-L4"
 __author__ = "Reagan Fu"
 __email__ = "reagan.fue@gmail.com"
 
-# Import main components for easy access
+# Import L4 enhanced components for easy access
 from .logic_core import BasicResponseLogic
-from .psi_field import SemanticFieldEngine, PsiFieldModel
-from .quantum_engine import QuantumAnalyzer
+from .psi_field import L4SemanticFieldEngine as SemanticFieldEngine
+from .quantum_engine import L4QuantumAnalyzer as QuantumAnalyzer
+
+# Create L4 integrated analyzer
+from .l4_integrated_analyzer import L4IntegratedAnalyzer
 
 __all__ = [
     "BasicResponseLogic",
     "SemanticFieldEngine", 
-    "PsiFieldModel",
     "QuantumAnalyzer",
+    "L4IntegratedAnalyzer",
     "__version__",
 ]
