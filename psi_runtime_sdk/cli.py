@@ -2,21 +2,24 @@
 # -*- coding: utf-8 -*-
 
 """
-PSI Runtime SDK Command Line Interface
+PSI Runtime SDK Command Line Interface - L4 Enhanced
 
-Enterprise CLI tool for managing PSI Runtime SDK operations.
+Enterprise CLI tool for managing PSI Runtime SDK operations with L4 meta-cognitive capabilities.
+Includes advanced analysis modes, engine status monitoring, and L4 optimization controls.
 """
 
 import asyncio
 import json
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import click
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.panel import Panel
+from rich.json import JSON
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -26,25 +29,307 @@ from psi_runtime_sdk.logging import setup_logging, get_logger
 from psi_runtime_sdk.monitoring import health_checker, get_health_status
 from psi_runtime_sdk.security import generate_api_key, create_user_token
 
+# Import L4 components
+try:
+    from psi_runtime_sdk import L4IntegratedAnalyzer, QuantumAnalyzer, SemanticFieldEngine, BasicResponseLogic
+    L4_AVAILABLE = True
+except ImportError:
+    L4_AVAILABLE = False
+
 console = Console()
 
 
 @click.group()
 @click.option('--config-file', help='Path to configuration file')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
-def cli(config_file: Optional[str], verbose: bool):
-    """PSI Runtime SDK Enterprise CLI Tool"""
+@click.option('--l4-mode', is_flag=True, help='Enable L4 meta-cognitive mode')
+def cli(config_file: Optional[str], verbose: bool, l4_mode: bool):
+    """PSI Runtime SDK Enterprise CLI Tool - L4 Enhanced"""
     if verbose:
         setup_logging()
     
     if config_file:
         console.print(f"Using config file: {config_file}")
+    
+    if l4_mode and L4_AVAILABLE:
+        console.print("🧠 L4 Meta-Cognitive Mode Enabled", style="bold green")
+    elif l4_mode and not L4_AVAILABLE:
+        console.print("❌ L4 Mode requested but not available", style="bold red")
 
 
 @cli.group()
 def health():
     """Health check and monitoring commands"""
     pass
+
+
+@cli.group()
+def analysis():
+    """L4 Enhanced Analysis Commands"""
+    pass
+
+
+@cli.group()
+def l4():
+    """L4 Meta-Cognitive Operations"""
+    pass
+
+
+@analysis.command()
+@click.argument('query')
+@click.option('--mode', default='integrated', 
+              type=click.Choice(['integrated', 'logic', 'quantum', 'field']),
+              help='Analysis mode: integrated, logic, quantum, field')
+@click.option('--session-id', help='Session ID for context continuity')
+@click.option('--format', 'output_format', default='table', help='Output format: table, json, detailed')
+@click.option('--save', help='Save results to file')
+def run(query: str, mode: str, session_id: Optional[str], output_format: str, save: Optional[str]):
+    """Run L4 enhanced analysis on query"""
+    if not L4_AVAILABLE:
+        console.print("❌ L4 components not available", style="bold red")
+        return
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task(f"Running {mode} analysis...", total=None)
+        
+        try:
+            # Select analyzer based on mode
+            if mode == 'integrated':
+                analyzer = L4IntegratedAnalyzer()
+                result = analyzer.analyze(query, session_id=session_id)
+            elif mode == 'logic':
+                analyzer = BasicResponseLogic()
+                result = analyzer.run(query)
+            elif mode == 'quantum':
+                analyzer = QuantumAnalyzer()
+                result = analyzer.comprehensive_analysis(query)
+            elif mode == 'field':
+                analyzer = SemanticFieldEngine()
+                result = analyzer.analyze(query, session_id=session_id)
+            else:
+                raise ValueError(f"Unknown mode: {mode}")
+            
+            progress.remove_task(task)
+            
+            # Display results based on format
+            if output_format == 'json':
+                console.print(JSON(json.dumps(result, indent=2)))
+            elif output_format == 'detailed':
+                _display_detailed_results(result, mode)
+            else:
+                _display_table_results(result, mode)
+            
+            # Save if requested
+            if save:
+                with open(save, 'w') as f:
+                    json.dump(result, f, indent=2)
+                console.print(f"Results saved to {save}", style="green")
+                
+        except Exception as e:
+            progress.remove_task(task)
+            console.print(f"❌ Analysis failed: {e}", style="bold red")
+
+
+@l4.command()
+@click.option('--engine', help='Specific engine to check: logic, quantum, field, integrated')
+def status(engine: Optional[str]):
+    """Get L4 system status and optimization metrics"""
+    if not L4_AVAILABLE:
+        console.print("❌ L4 components not available", style="bold red")
+        return
+    
+    try:
+        if engine == 'integrated' or not engine:
+            analyzer = L4IntegratedAnalyzer()
+            status_data = analyzer.get_l4_status()
+            _display_l4_status(status_data, "Integrated Analyzer")
+        
+        if engine == 'quantum' or not engine:
+            analyzer = QuantumAnalyzer()
+            status_data = analyzer.get_l4_status()
+            _display_l4_status(status_data, "Quantum Engine")
+        
+        if engine == 'field' or not engine:
+            analyzer = SemanticFieldEngine()
+            status_data = analyzer.get_l4_status()
+            _display_l4_status(status_data, "Semantic Field Engine")
+        
+        if engine == 'logic' or not engine:
+            analyzer = BasicResponseLogic()
+            status_data = analyzer.get_status()
+            _display_l4_status(status_data, "Logic Core Engine")
+            
+    except Exception as e:
+        console.print(f"❌ Status check failed: {e}", style="bold red")
+
+
+@l4.command()
+@click.argument('query')
+@click.option('--iterations', default=5, help='Number of analysis iterations')
+@click.option('--compare-engines', is_flag=True, help='Compare all engines')
+def benchmark(query: str, iterations: int, compare_engines: bool):
+    """Benchmark L4 analysis performance"""
+    if not L4_AVAILABLE:
+        console.print("❌ L4 components not available", style="bold red")
+        return
+    
+    console.print(f"🔬 Running L4 benchmark with {iterations} iterations", style="bold blue")
+    
+    results = {}
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        
+        if compare_engines:
+            # Test all engines
+            engines = [
+                ('Integrated', lambda: L4IntegratedAnalyzer().analyze(query)),
+                ('Logic', lambda: BasicResponseLogic().run(query)),
+                ('Quantum', lambda: QuantumAnalyzer().comprehensive_analysis(query)),
+                ('Field', lambda: SemanticFieldEngine().analyze(query))
+            ]
+        else:
+            # Test just integrated
+            engines = [('Integrated', lambda: L4IntegratedAnalyzer().analyze(query))]
+        
+        for engine_name, engine_func in engines:
+            task = progress.add_task(f"Benchmarking {engine_name}...", total=iterations)
+            
+            times = []
+            confidences = []
+            
+            for i in range(iterations):
+                try:
+                    import time
+                    start = time.perf_counter()
+                    result = engine_func()
+                    end = time.perf_counter()
+                    
+                    times.append(end - start)
+                    confidences.append(result.get('confidence', 0.0))
+                    
+                    progress.advance(task)
+                except Exception as e:
+                    console.print(f"❌ {engine_name} iteration {i+1} failed: {e}", style="red")
+            
+            if times:
+                results[engine_name] = {
+                    'avg_time': sum(times) / len(times),
+                    'min_time': min(times),
+                    'max_time': max(times),
+                    'avg_confidence': sum(confidences) / len(confidences),
+                    'iterations': len(times)
+                }
+            
+            progress.remove_task(task)
+    
+    # Display benchmark results
+    _display_benchmark_results(results)
+
+
+def _display_detailed_results(result: Dict, mode: str):
+    """Display detailed analysis results"""
+    console.print(f"\n[bold blue]🧠 L4 {mode.title()} Analysis Results[/bold blue]")
+    
+    # Main metrics panel
+    metrics_content = []
+    if 'confidence' in result:
+        metrics_content.append(f"Confidence: {result['confidence']:.4f}")
+    if 'integrated_score' in result:
+        metrics_content.append(f"Integrated Score: {result['integrated_score']:.4f}")
+    if 'l4_meta_score' in result:
+        metrics_content.append(f"L4 Meta Score: {result['l4_meta_score']:.4f}")
+    if 'cross_engine_harmony' in result:
+        metrics_content.append(f"Cross-Engine Harmony: {result['cross_engine_harmony']:.4f}")
+    
+    if metrics_content:
+        console.print(Panel("\n".join(metrics_content), title="Core Metrics", border_style="green"))
+    
+    # Reasoning path
+    if 'reasoning_path' in result:
+        path_content = "\n".join(result['reasoning_path'][-5:])  # Last 5 steps
+        console.print(Panel(path_content, title="Reasoning Path (Last 5 Steps)", border_style="blue"))
+    
+    # Optimizations applied
+    if 'optimization_applied' in result or 'l4_optimizations_applied' in result:
+        opts = result.get('optimization_applied', result.get('l4_optimizations_applied', []))
+        opts_content = "\n".join(f"✓ {opt}" for opt in opts)
+        console.print(Panel(opts_content, title="L4 Optimizations Applied", border_style="yellow"))
+
+
+def _display_table_results(result: Dict, mode: str):
+    """Display results in table format"""
+    table = Table(title=f"L4 {mode.title()} Analysis Results")
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", style="green")
+    table.add_column("Type", style="yellow")
+    
+    # Add key metrics
+    if 'confidence' in result:
+        table.add_row("Confidence", f"{result['confidence']:.4f}", "Core")
+    if 'integrated_score' in result:
+        table.add_row("Integrated Score", f"{result['integrated_score']:.4f}", "L4")
+    if 'l4_meta_score' in result:
+        table.add_row("L4 Meta Score", f"{result['l4_meta_score']:.4f}", "Meta-Cognitive")
+    if 'cross_engine_harmony' in result:
+        table.add_row("Cross-Engine Harmony", f"{result['cross_engine_harmony']:.4f}", "Integration")
+    if 'processing_time' in result:
+        table.add_row("Processing Time", f"{result['processing_time']:.4f}s", "Performance")
+    
+    console.print(table)
+
+
+def _display_l4_status(status_data: Dict, engine_name: str):
+    """Display L4 status information"""
+    console.print(f"\n[bold blue]🔧 {engine_name} Status[/bold blue]")
+    
+    # Status panel
+    status_content = []
+    status_content.append(f"Status: {status_data.get('status', 'unknown')}")
+    
+    if 'l4_optimization_enabled' in status_data:
+        status_content.append(f"L4 Optimization: {'✓ Enabled' if status_data['l4_optimization_enabled'] else '✗ Disabled'}")
+    
+    if 'l4_features' in status_data:
+        features = status_data['l4_features']
+        status_content.append(f"L4 Features: {len(features)} active")
+    
+    console.print(Panel("\n".join(status_content), title="Status", border_style="green"))
+    
+    # Features panel
+    if 'l4_features' in status_data:
+        features_content = "\n".join(f"✓ {feature}" for feature in status_data['l4_features'])
+        console.print(Panel(features_content, title="L4 Features", border_style="blue"))
+
+
+def _display_benchmark_results(results: Dict):
+    """Display benchmark results"""
+    table = Table(title="L4 Performance Benchmark Results")
+    table.add_column("Engine", style="cyan")
+    table.add_column("Avg Time (s)", style="green")
+    table.add_column("Min Time (s)", style="green")  
+    table.add_column("Max Time (s)", style="green")
+    table.add_column("Avg Confidence", style="yellow")
+    table.add_column("Iterations", style="white")
+    
+    for engine_name, metrics in results.items():
+        table.add_row(
+            engine_name,
+            f"{metrics['avg_time']:.4f}",
+            f"{metrics['min_time']:.4f}",
+            f"{metrics['max_time']:.4f}",
+            f"{metrics['avg_confidence']:.4f}",
+            str(metrics['iterations'])
+        )
+    
+    console.print(table)
 
 
 @health.command()
@@ -146,13 +431,13 @@ def analysis():
     pass
 
 
-@analysis.command()
+@analysis.command(name="legacy")
 @click.argument('query')
 @click.option('--mode', type=click.Choice(['basic', 'quantum', 'semantic', 'comprehensive']), 
               default='comprehensive', help='Analysis mode')
 @click.option('--output', type=click.Choice(['json', 'table']), default='table', 
               help='Output format')
-def run(query: str, mode: str, output: str):
+def legacy_run(query: str, mode: str, output: str):
     """Run AI analysis on input text"""
     with Progress(
         SpinnerColumn(),
