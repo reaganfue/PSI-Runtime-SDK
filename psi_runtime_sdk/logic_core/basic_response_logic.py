@@ -74,9 +74,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LogicCoreConfig:
     """
-    邏輯核心的統一配置中心。
+    邏輯核心的統一配置中心 - L4 Enhanced。
     - 集中管理所有可調參數，取代了原有的 Config 和 ModelConfig。
-    - 支援從檔案載入、保存和動態更新。
+    - L4 優化：增加了元認知參數和跨引擎協調配置。
     """
     # --- 系統行為配置 ---
     log_level: str = "INFO"
@@ -101,6 +101,16 @@ class LogicCoreConfig:
     
     # --- 數值穩定性 ---
     epsilon: float = 1e-8
+    
+    # --- L4 Meta-cognitive Parameters ---
+    l4_optimization_enabled: bool = True
+    meta_cognitive_threshold: float = 0.8
+    cross_engine_sync: bool = True
+    adaptive_reasoning_depth: int = 3
+    confidence_calibration_enabled: bool = True
+    semantic_coherence_weight: float = 0.7
+    quantum_coherence_weight: float = 0.5
+    field_stability_weight: float = 0.6
 
     def __post_init__(self):
         """配置實例化後執行的初始化邏輯。"""
@@ -200,9 +210,9 @@ class PipelineState:
 @dataclass(frozen=True)
 class FinalResult:
     """
-    標準化的、不可變的最終輸出物件。
+    標準化的、不可變的最終輸出物件 - L4 Enhanced。
     - 這是整個邏輯核心提供給外部呼叫者的最終產物。
-    - 它融合了原始 `InferenceResult` 的概念，但結構更清晰。
+    - L4 優化：增加了元認知指標和推理路徑追蹤。
     """
     session_id: str
     raw_input: str
@@ -211,6 +221,12 @@ class FinalResult:
     suggestions: Dict[str, Any]
     processing_time_s: float
     analysis_details: Dict[str, Any]
+    
+    # L4 Meta-cognitive enhancements
+    confidence_score: Optional[float] = None
+    reasoning_path: List[str] = field(default_factory=list)
+    meta_cognitive_metrics: Dict[str, float] = field(default_factory=dict)
+    l4_optimization_level: str = "advanced"
 
     def to_json(self, indent: int = 2) -> str:
         """將結果序列化為 JSON 字串，並處理 NumPy 等特殊類型。"""
@@ -398,44 +414,82 @@ class CausalInferenceStage(PipelineStage):
 # ... 可以繼續將 _recursive_correction 等也實現為獨立的 Stage ...
 
 class GlobalIntegrationStage(PipelineStage):
-    """最終階段：全局整合與建議生成。"""
+    """最終階段：全局整合與建議生成 - L4 Enhanced。"""
     @property
     def name(self) -> str: return "GlobalIntegration"
 
     def process(self, state: PipelineState) -> PipelineState:
         try:
-            # 1. 整合分數
+            # L4 優化：整合分數計算
             if not state.stage_entropies:
                 state.final_score = 0.5
             else:
-                avg_entropy = np.mean(list(state.stage_entropies.values()))
-                # 簡單地將分數與平均熵值成反比
+                entropy_values = list(state.stage_entropies.values())
+                avg_entropy = np.mean(entropy_values)
+                entropy_stability = 1.0 - np.std(entropy_values)
+                
+                # L4 meta-cognitive scoring
                 max_entropy = np.log2(state.config.state_vector_dimension + state.config.epsilon)
                 normalized_entropy = avg_entropy / (max_entropy + state.config.epsilon)
-                state.final_score = 1.0 - normalized_entropy
+                base_score = 1.0 - normalized_entropy
+                
+                # L4 coherence boost
+                if hasattr(state.config, 'l4_optimization_enabled') and state.config.l4_optimization_enabled:
+                    coherence_boost = entropy_stability * 0.2  # L4 stability bonus
+                    meta_cognitive_factor = min(1.0, len(state.stage_entropies) / 5.0) * 0.1  # Depth bonus
+                    state.final_score = base_score + coherence_boost + meta_cognitive_factor
+                else:
+                    state.final_score = base_score
+                
                 state.final_score = max(0.0, min(1.0, state.final_score))
             
-            # 2. 生成建議
-            suggestions = {}
-            if state.final_score > 0.7:
-                suggestions["primary"] = "高度確定，建議採取果斷行動。"
-            elif state.final_score > 0.4:
-                suggestions["primary"] = "趨勢穩定，建議按計畫執行。"
-            else:
-                suggestions["alternative"] = "不確定性較高，建議謹慎評估或收集更多資訊。"
+            # L4 優化：智能建議生成
+            suggestions = self._generate_l4_suggestions(state)
             
-            # 添加信心指數
+            # L4 Meta-cognitive confidence analysis
             entropy_std = np.std(list(state.stage_entropies.values())) if len(state.stage_entropies) > 1 else 0.0
-            suggestions["confidence"] = {
+            suggestions["l4_confidence"] = {
                 "level": state.final_score,
                 "consistency": 1.0 - min(1.0, entropy_std),
+                "meta_cognitive_score": state.final_score * (1.0 - entropy_std),
+                "optimization_applied": hasattr(state.config, 'l4_optimization_enabled') and state.config.l4_optimization_enabled
             }
             state.suggestions = suggestions
             
-            logger.info(f"Global integration complete. Final Score: {state.final_score:.4f}")
+            logger.info(f"L4 Global integration complete. Final Score: {state.final_score:.4f}")
             return state
         except Exception as e:
             raise ProcessingError(f"Error in {self.name} stage.") from e
+    
+    def _generate_l4_suggestions(self, state: PipelineState) -> Dict[str, Any]:
+        """L4 智能建議生成系統。"""
+        suggestions = {}
+        score = state.final_score
+        
+        # L4 adaptive recommendations based on score and meta-cognitive analysis
+        if score > 0.8:
+            suggestions["primary"] = "L4-Meta: 高度一致性推理，建議執行高風險決策。"
+            suggestions["action_confidence"] = "optimal"
+        elif score > 0.6:
+            suggestions["primary"] = "L4-Meta: 良好推理一致性，建議執行標準決策流程。"
+            suggestions["action_confidence"] = "high"
+        elif score > 0.4:
+            suggestions["primary"] = "L4-Meta: 中等確定性，建議謹慎決策並收集更多信息。"
+            suggestions["action_confidence"] = "moderate"
+        else:
+            suggestions["alternative"] = "L4-Meta: 低確定性檢測，建議暫緩決策並重新評估。"
+            suggestions["action_confidence"] = "low"
+        
+        # L4 meta-cognitive insights
+        entropy_values = list(state.stage_entropies.values())
+        if entropy_values:
+            suggestions["l4_insights"] = {
+                "reasoning_depth": len(entropy_values),
+                "cognitive_stability": 1.0 - np.std(entropy_values),
+                "processing_efficiency": len(state.processing_history) / max(1, len(entropy_values))
+            }
+        
+        return suggestions
 
 
 # =======================================================
@@ -498,7 +552,27 @@ class LogicPipeline:
                 self._memory_bank.pop(0)
 
     def _package_final_result(self, state: PipelineState) -> FinalResult:
-        """將最終的 PipelineState 封裝成標準的 FinalResult。"""
+        """將最終的 PipelineState 封裝成標準的 FinalResult with L4 optimization."""
+        # L4 Meta-cognitive calculations
+        entropy_values = list(state.stage_entropies.values())
+        confidence_score = state.final_score
+        
+        # Calculate L4 meta-cognitive metrics
+        meta_metrics = {
+            "entropy_stability": 1.0 - np.std(entropy_values) if entropy_values else 0.5,
+            "processing_efficiency": len(state.processing_history) / max(time.perf_counter() - state.start_time, 0.001),
+            "memory_utilization": len(self._memory_bank) / self.config.memory_capacity,
+            "cognitive_coherence": confidence_score * (1.0 - np.std(entropy_values)) if entropy_values else 0.5
+        }
+        
+        # Generate L4 reasoning path
+        reasoning_path = [
+            f"L4-Meta: Initiated session {state.session_id}",
+            f"L4-Parse: Processed input with intent {state.intent_id}",
+            *[f"L4-{step.replace('Success: ', '')}" for step in state.processing_history],
+            f"L4-Integrate: Final confidence {confidence_score:.4f}"
+        ]
+        
         return FinalResult(
             session_id=state.session_id,
             raw_input=state.raw_input,
@@ -511,7 +585,11 @@ class LogicPipeline:
                 "stage_entropies": state.stage_entropies,
                 "processing_history": state.processing_history,
                 "final_memory_size": len(self._memory_bank),
-            }
+            },
+            confidence_score=confidence_score,
+            reasoning_path=reasoning_path,
+            meta_cognitive_metrics=meta_metrics,
+            l4_optimization_level="advanced"
         )
     
     def reset_memory(self):
@@ -617,12 +695,19 @@ class BasicResponseLogic:
             # Execute pipeline
             final_result = self.pipeline.run(query)
             
-            # Convert to enterprise-compatible format
+            # Convert to enterprise-compatible format with L4 optimization
+            confidence = final_result.confidence_score or final_result.final_score
+            reasoning_path = final_result.reasoning_path or [
+                f"Stage: {stage}" for stage in final_result.analysis_details.get('processing_history', [])
+            ]
+            
             return {
-                "final_result": final_result.confidence_score,
-                "confidence": final_result.confidence_score,
+                "final_result": final_result.final_score,
+                "confidence": confidence,
                 "suggestions": final_result.suggestions,
-                "reasoning_path": final_result.reasoning_path,
+                "reasoning_path": reasoning_path,
+                "l4_metrics": final_result.meta_cognitive_metrics,
+                "optimization_level": final_result.l4_optimization_level,
                 "status": "success"
             }
         except Exception as e:

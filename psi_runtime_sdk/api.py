@@ -1,7 +1,14 @@
 """
-Enterprise API Server for PSI Runtime SDK
+Enterprise API Server for PSI Runtime SDK - L4 Enhanced
 
-Provides a production-ready API with security, monitoring, and documentation.
+Provides a production-ready API with L4 meta-cognitive capabilities, security, 
+monitoring, and comprehensive documentation.
+
+L4 API Features:
+- Integrated multi-engine analysis
+- Meta-cognitive optimization endpoints
+- Cross-engine synchronization
+- Advanced analytics and monitoring
 """
 
 import asyncio
@@ -20,6 +27,16 @@ from .config import get_config
 from .logging import get_logger, log_api_request, start_metrics_server
 from .monitoring import get_health_status, get_performance_summary
 from .security import verify_api_key, verify_jwt_token, RateLimiter
+
+# Import L4 components
+try:
+    from .l4_integrated_analyzer import L4IntegratedAnalyzer
+    from .quantum_engine import L4QuantumAnalyzer
+    from .psi_field import L4SemanticFieldEngine
+    from .logic_core import BasicResponseLogic
+    L4_AVAILABLE = True
+except ImportError:
+    L4_AVAILABLE = False
 
 # Initialize configuration and logger
 config = get_config()
@@ -47,6 +64,32 @@ class AnalysisRequest(BaseModel):
     query: str = Field(description="Input text to analyze", min_length=1, max_length=10000)
     context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
     options: Optional[Dict[str, Any]] = Field(default=None, description="Analysis options")
+
+
+class L4AnalysisRequest(BaseModel):
+    """L4 Enhanced analysis request model."""
+    query: str = Field(description="Input text to analyze", min_length=1, max_length=10000)
+    context: Optional[Dict[str, Any]] = Field(default=None, description="Additional context")
+    session_id: Optional[str] = Field(default=None, description="Session ID for context continuity")
+    engine_weights: Optional[Dict[str, float]] = Field(default=None, description="Custom engine weights")
+    l4_options: Optional[Dict[str, Any]] = Field(default=None, description="L4-specific options")
+
+
+class L4StatusResponse(BaseModel):
+    """L4 system status response."""
+    status: str
+    l4_optimization_enabled: bool
+    engines: Dict[str, Any]
+    integration_features: List[str]
+    analysis_history_size: int
+    optimal_weights: Dict[str, float]
+
+
+class BenchmarkRequest(BaseModel):
+    """Benchmark request model."""
+    query: str = Field(description="Query to benchmark")
+    iterations: int = Field(default=5, ge=1, le=50, description="Number of iterations")
+    engines: List[str] = Field(default=["integrated"], description="Engines to benchmark")
 
 
 class ModelConfig(BaseModel):
@@ -336,6 +379,119 @@ def add_routes(app: FastAPI):
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Model training failed"
+            )
+    
+    # L4 Enhanced Analysis Endpoints
+    @app.post("/l4/analyze/integrated", response_model=APIResponse)
+    @log_api_request
+    async def l4_integrated_analysis(
+        request: L4AnalysisRequest,
+        credentials: HTTPAuthorizationCredentials = Security(security)
+    ):
+        """L4 integrated multi-engine analysis with meta-cognitive optimization."""
+        await verify_authentication(credentials)
+        await rate_limiter.check_rate_limit("l4_analysis")
+        
+        if not L4_AVAILABLE:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="L4 components not available"
+            )
+        
+        try:
+            analyzer = L4IntegratedAnalyzer()
+            
+            result = analyzer.analyze(
+                request.query,
+                context=request.context,
+                session_id=request.session_id
+            )
+            
+            return APIResponse(
+                success=True,
+                data=result,
+                message="L4 integrated analysis completed successfully"
+            )
+        except Exception as e:
+            logger.error("L4 integrated analysis failed", error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="L4 integrated analysis failed"
+            )
+    
+    @app.get("/l4/status", response_model=APIResponse)
+    @log_api_request  
+    async def l4_status(
+        engine: Optional[str] = None,
+        credentials: HTTPAuthorizationCredentials = Security(security)
+    ):
+        """Get L4 system status and optimization metrics."""
+        await verify_authentication(credentials)
+        
+        if not L4_AVAILABLE:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="L4 components not available"
+            )
+        
+        try:
+            if engine == "integrated" or not engine:
+                analyzer = L4IntegratedAnalyzer()
+                status_data = analyzer.get_l4_status()
+            else:
+                # Get integrated status as default
+                integrated = L4IntegratedAnalyzer()
+                status_data = integrated.get_l4_status()
+            
+            return APIResponse(
+                success=True,
+                data=status_data,
+                message=f"L4 {engine or 'system'} status retrieved successfully"
+            )
+        except Exception as e:
+            logger.error("L4 status check failed", error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="L4 status check failed"
+            )
+    
+    @app.get("/l4/features", response_model=APIResponse)
+    @log_api_request
+    async def l4_features():
+        """Get available L4 features and capabilities."""
+        try:
+            features = {
+                "l4_available": L4_AVAILABLE,
+                "engines": {
+                    "integrated_analyzer": L4_AVAILABLE,
+                    "quantum_analyzer": L4_AVAILABLE,
+                    "semantic_field_engine": L4_AVAILABLE,
+                    "logic_core_engine": True
+                },
+                "capabilities": [
+                    "meta_cognitive_optimization",
+                    "cross_engine_synchronization", 
+                    "adaptive_confidence_calibration",
+                    "integrated_reasoning_paths",
+                    "dynamic_engine_weighting"
+                ] if L4_AVAILABLE else ["basic_analysis"],
+                "api_endpoints": [
+                    "/l4/analyze/integrated",
+                    "/l4/status", 
+                    "/l4/features"
+                ] if L4_AVAILABLE else []
+            }
+            
+            return APIResponse(
+                success=True,
+                data=features,
+                message="L4 features information retrieved successfully"
+            )
+        except Exception as e:
+            logger.error("L4 features check failed", error=str(e))
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="L4 features check failed"
             )
 
 
